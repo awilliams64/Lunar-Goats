@@ -404,6 +404,23 @@
       color: #94a3b8;
     }
 
+    /* LEVEL assist toggle sits above Act */
+    .t-btn.level-btn {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.52);
+      color: #94a3b8;
+    }
+
+    .t-btn.level-btn.on {
+      background: rgba(14, 165, 233, 0.3);
+      border-color: rgba(125, 211, 252, 0.85);
+      color: #e0f2fe;
+    }
+
     .t-btn.fine-btn.on {
       background: rgba(168, 85, 247, 0.35);
       border-color: rgba(196, 181, 253, 0.85);
@@ -716,6 +733,10 @@
       font-size: 14px;
     }
 
+    .lb-hint {
+      margin: 0 0 8px 0;
+    }
+
     .lb-select {
       width: 100%;
       margin-bottom: 8px;
@@ -865,7 +886,7 @@
 
       #flightHud {
         bottom: 12px;
-        grid-template-columns: repeat(9, auto);
+        grid-template-columns: repeat(10, auto);
         font-size: 12px;
         max-width: none;
       }
@@ -915,6 +936,7 @@
     <div class="fh-item"><span class="fh-label">Pe</span><span id="fhPe" class="fh-val">—</span></div>
     <div class="fh-item"><span class="fh-label">FUEL</span><span id="fhFuel" class="fh-val">100%</span></div>
     <div class="fh-item"><span class="fh-label">THR</span><span id="fhThr" class="fh-val">0%</span></div>
+    <div class="fh-item"><span class="fh-label">NOSE</span><span id="fhAtt" class="fh-val">LEVEL</span></div>
     <div class="fh-item scored-only" id="fhTimeItem"><span class="fh-label">TIME</span><span id="fhTime" class="fh-val">0s</span></div>
     <div class="fh-item scored-only" id="fhDvItem"><span class="fh-label">Δv</span><span id="fhDv" class="fh-val">0</span></div>
   </div>
@@ -941,6 +963,7 @@
           <div class="ctrl-row"><span class="key-tag green">Space / ▲</span><span>Pronk (jump). Time landings for 3x chains</span></div>
           <div class="ctrl-row"><span class="key-tag">X / W</span><span>Jetpack. Tap to nudge, hold to ramp to full</span></div>
           <div class="ctrl-row"><span class="key-tag">Shift</span><span>Fine thrust (25% max) for precise trims</span></div>
+          <div class="ctrl-row"><span class="key-tag">Q</span><span>Level assist on/off: nose snaps back to horizontal</span></div>
           <div class="ctrl-row"><span class="key-tag">Z</span><span>Action: graze moss, headbutt / nudge, or bleat</span></div>
           <div class="ctrl-row"><span class="key-tag">Click / Tab</span><span>Switch goat. Wheel zooms, double-click resets</span></div>
         </div>
@@ -949,6 +972,7 @@
           <div class="ctrl-row"><span class="key-tag green">⬆ Pronk</span><span>Jump. Time landings for 3x chains</span></div>
           <div class="ctrl-row"><span class="key-tag">🔥 Boost</span><span>Jetpack. Tap to nudge, hold to ramp to full</span></div>
           <div class="ctrl-row"><span class="key-tag">FINE</span><span>Toggle 25% thrust for precise trims</span></div>
+          <div class="ctrl-row"><span class="key-tag">LEVEL</span><span>Toggle: nose snaps back to horizontal (on by default)</span></div>
           <div class="ctrl-row"><span class="key-tag">⚡ Act</span><span>Graze moss, headbutt / nudge, or bleat</span></div>
           <div class="ctrl-row"><span class="key-tag">Tap goat</span><span>Switch goat. Pinch zooms, double-tap resets</span></div>
         </div>
@@ -957,7 +981,8 @@
       <details class="menu-section">
         <summary>🎓 Flight Tips</summary>
         <ul class="academy-list">
-          <li><strong>Pronk for height, then burn sideways.</strong> Coast up to the <strong>Ap</strong> marker, point the nose level and boost until <strong>Pe</strong> clears the ground and the path turns green.</li>
+          <li><strong>Pronk for height, then burn sideways.</strong> Sprint to about <strong>SPD 180</strong> and pronk: your high point (<strong>Ap</strong>) lands near 200. Coast up to it and boost until <strong>Pe</strong> clears the ground and the path turns green.</li>
+          <li><strong>Let LEVEL fly the nose.</strong> With Level assist on, let go of ◀ ▶ and the nose snaps flat, so Boost burns straight along your orbit. Tap the direction you're flying first to speed up; tap the other way to slow down.</li>
           <li><strong>Red line = trouble.</strong> LOST or ESCAPE means the goat will drift away. Turn around and burn to slow down.</li>
           <li><strong>Save fuel.</strong> Stars come from beating the par time and the Δv par. A headbutt nudge can push a herd-mate into orbit for free.</li>
           <li><strong>Rounds rotate:</strong> full orbit → altitude band → ring gates. Moss refuels you and grows kids.</li>
@@ -967,6 +992,7 @@
 
       <details id="menuBoards" class="menu-section" style="display:none">
         <summary>🌍 Leaderboards</summary>
+        <p id="menuBoardHint" class="menu-note lb-hint">Clear a round, then enter your name on the results screen to post your score.</p>
         <select id="menuBoardSelect" class="lb-select" aria-label="Choose a leaderboard"></select>
         <div id="menuBoardList" class="lb-body"></div>
       </details>
@@ -1018,6 +1044,7 @@
     </div>
 
     <div class="touch-right-grid">
+      <button id="btnLevel" class="t-btn level-btn on" aria-pressed="true">LEVEL</button>
       <button id="btnFine" class="t-btn fine-btn" aria-pressed="false">FINE</button>
       <button id="btnAction" class="t-btn action-btn">⚡<br>Act</button>
       <button id="btnBoost" class="t-btn boost-btn">🔥<br>Boost</button>
@@ -1117,6 +1144,8 @@
 
       // Fine-thrust mode: hold Shift on desktop, or latch the FINE toggle on mobile
       let fineToggle = false;
+      // LEVEL assist (on by default; remembered per browser)
+      let levelAssist = true;
       function isFineThrust() {
         return fineToggle || Boolean(keys["ShiftLeft"] || keys["ShiftRight"]);
       }
@@ -1693,6 +1722,10 @@
           return;
         }
         section.style.display = "block";
+        const savedName = loadJSON(PLAYER_NAME_KEY, "");
+        document.getElementById("menuBoardHint").textContent = savedName
+          ? `Posting as ${savedName}. Clear a round and press Submit on the results screen.`
+          : "Clear a round, then enter your name on the results screen to post your score.";
         const select = document.getElementById("menuBoardSelect");
         if (!select.options.length) {
           const opts = [[`daily-${todayKey()}`, "📅 Today's Daily"]];
@@ -2756,6 +2789,11 @@
               g.facing = moveInput > 0 ? 1 : -1;
               g.angVel = moveInput * 4.4;
               g.tilt += g.angVel * dt;
+            } else if (isPlayer && levelAssist) {
+              // LEVEL assist: snap the nose back to horizontal within ~0.2 s, so
+              // Boost is a clean horizontal burn (prograde or retrograde by facing)
+              g.angVel = 0;
+              g.tilt = normalizeAngle(g.tilt) * Math.pow(0.00001, dt);
             } else {
               g.angVel *= Math.pow(0.02, dt);
               g.tilt = normalizeAngle(g.tilt) * Math.pow(0.18, dt);
@@ -3217,18 +3255,49 @@
         ctx.save();
         ctx.translate(Math.cos(FLAG_ANGLE) * flagR, Math.sin(FLAG_ANGLE) * flagR);
         ctx.rotate(FLAG_ANGLE + Math.PI * 0.5);
-        ctx.strokeStyle = "#f8fafc";
+        // Pole
+        ctx.strokeStyle = "#e2e8f0";
         ctx.lineWidth = 3;
+        ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(0, -78);
+        ctx.lineTo(0, -82);
         ctx.stroke();
-        ctx.fillStyle = "#38bdf8";
-        ctx.fillRect(0, -76, 34, 20);
-        ctx.fillStyle = "#facc15";
+
+        // US flag: 13 stripes (7 red, 6 white), blue canton with stars.
+        // Hangs from a horizontal top rod, like the Apollo flags (no wind on the Moon).
+        const FW = 40;
+        const FH = 22;
+        const fx = 1.5;
+        const fy = -80;
+        const stripeH = FH / 13;
+        for (let s = 0; s < 13; s++) {
+          ctx.fillStyle = s % 2 === 0 ? "#b22234" : "#ffffff";
+          ctx.fillRect(fx, fy + s * stripeH, FW, stripeH + 0.2);
+        }
+        const cantonW = FW * 0.4;
+        const cantonH = stripeH * 7;
+        ctx.fillStyle = "#3c3b6e";
+        ctx.fillRect(fx, fy, cantonW, cantonH);
+        ctx.fillStyle = "#ffffff";
+        for (let row = 0; row < 4; row++) {
+          const cols = row % 2 === 0 ? 5 : 4;
+          const offset = row % 2 === 0 ? 0 : cantonW / 10;
+          for (let c = 0; c < cols; c++) {
+            ctx.beginPath();
+            ctx.arc(fx + cantonW / 10 + offset + c * (cantonW / 5), fy + 1.9 + row * (cantonH / 4.1), 0.75, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        // Top rod + subtle shading so it reads as cloth
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.arc(12, -66, 5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(0, fy);
+        ctx.lineTo(fx + FW + 1, fy);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(15, 23, 42, 0.12)";
+        ctx.fillRect(fx + FW * 0.55, fy, FW * 0.12, FH);
         ctx.restore();
 
         // Launch Crater Label
@@ -3477,6 +3546,12 @@
           ctx.roundRect(-13, -12, 11, 10, 3);
           ctx.fill();
           ctx.stroke();
+          // Jetpack status light: green when fueled, blinking red when low
+          const lowFuel = g.fuel <= 0.25;
+          ctx.fillStyle = lowFuel ? (Math.floor(simTime * 4) % 2 ? "#fb7185" : "#7f1d1d") : "#34d399";
+          ctx.beginPath();
+          ctx.arc(-7.5, -9.5, 1.6, 0, Math.PI * 2);
+          ctx.fill();
 
           // Thruster Plume
           if (g.boosting) {
@@ -3497,47 +3572,126 @@
           const stride = g.grounded && speed > 15 && g.faintTimer <= 0 ? Math.sin(g.legPhase) * 6 : 0;
           const stiffAngle = !g.grounded || g.faintTimer > 0 ? 0.28 : 0;
 
+          const coat = g.alienMutated ? "#86efac" : g.palette.coat;
           const legX = [-10, -5, 6, 10];
           for (let l = 0; l < 4; l++) {
             const dir = l < 2 ? -1 : 1;
             const swing = (l % 2 === 0 ? stride : -stride) + dir * stiffAngle * 14;
+            const footX = legX[l] + swing;
+            ctx.strokeStyle = coat;
+            ctx.lineWidth = 3.2;
             ctx.beginPath();
             ctx.moveTo(legX[l], 4);
-            ctx.lineTo(legX[l] + swing, 16);
+            ctx.lineTo(legX[l] + swing * 0.8, 13.5);
+            ctx.stroke();
+            // Dark cloven hoof
+            ctx.strokeStyle = "#1e293b";
+            ctx.lineWidth = 3.4;
+            ctx.beginPath();
+            ctx.moveTo(legX[l] + swing * 0.8, 13.5);
+            ctx.lineTo(footX, 16);
             ctx.stroke();
           }
 
-          // Goat Torso
-          ctx.fillStyle = g.alienMutated ? "#86efac" : g.palette.coat;
+          // Goat Torso, with a soft belly shadow for depth
+          ctx.fillStyle = coat;
           ctx.beginPath();
           ctx.roundRect(-15, -7, 28, 14, 7);
           ctx.fill();
+          ctx.fillStyle = "rgba(15, 23, 42, 0.14)";
+          ctx.beginPath();
+          ctx.roundRect(-12, 1.5, 22, 5, 3);
+          ctx.fill();
 
-          // Tail
+          // Tufted Tail
+          ctx.strokeStyle = coat;
+          ctx.lineWidth = 3.2;
           ctx.beginPath();
           ctx.moveTo(-14, -5);
           ctx.lineTo(-19, -11);
           ctx.stroke();
+          ctx.fillStyle = coat;
+          ctx.beginPath();
+          ctx.arc(-19.5, -11.5, 2.2, 0, Math.PI * 2);
+          ctx.fill();
 
-          // Goat Head & Curved Horns
-          ctx.fillStyle = g.alienMutated ? "#86efac" : g.palette.coat;
+          // Back horn (darker, behind the head) for depth
+          ctx.strokeStyle = g.palette.horns;
+          ctx.globalAlpha = 0.55;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.arc(8, -14, g.isKid ? 3.5 : 5.5, Math.PI * 0.95, Math.PI * 1.8);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          // Goat Head
+          ctx.fillStyle = coat;
           ctx.beginPath();
           ctx.ellipse(14, -9, 8, 6, -0.2, 0, Math.PI * 2);
           ctx.fill();
 
+          // Floppy ear
+          ctx.fillStyle = g.palette.horns;
+          ctx.beginPath();
+          ctx.ellipse(9, -9, 3.6, 1.8, 0.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Front horn
           ctx.strokeStyle = g.palette.horns;
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(10, -14, 6, Math.PI * 0.9, Math.PI * 1.85);
+          ctx.arc(10, -14, g.isKid ? 4 : 6, Math.PI * 0.9, Math.PI * 1.85);
           ctx.stroke();
 
-          // Oversized Glass Space Helmet
+          // Muzzle, eye and goatee
+          ctx.fillStyle = "rgba(15, 23, 42, 0.18)";
+          ctx.beginPath();
+          ctx.ellipse(20.5, -7, 2.6, 2.2, -0.2, 0, Math.PI * 2);
+          ctx.fill();
+          const eyeClosed = g.faintTimer > 0;
+          ctx.strokeStyle = "#0f172a";
+          ctx.fillStyle = "#0f172a";
+          if (eyeClosed) {
+            // Dizzy "x" eye while fainted
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(15.5, -12.5);
+            ctx.lineTo(18, -10);
+            ctx.moveTo(18, -12.5);
+            ctx.lineTo(15.5, -10);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.arc(16.8, -11, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(17.3, -11.5, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (!g.isKid) {
+            ctx.fillStyle = g.palette.horns;
+            ctx.beginPath();
+            ctx.moveTo(17.5, -4.5);
+            ctx.lineTo(20.5, -4.8);
+            ctx.lineTo(18.6, 0.5);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Oversized Glass Space Helmet with a glint
           ctx.fillStyle = "rgba(56, 189, 248, 0.24)";
           ctx.strokeStyle = g.palette.visor;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.arc(14, -10, 11.5, 0, Math.PI * 2);
           ctx.fill();
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+          ctx.lineWidth = 1.6;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.arc(14, -10, 8.5, Math.PI * 1.12, Math.PI * 1.42);
           ctx.stroke();
 
           ctx.restore();
@@ -3773,6 +3927,11 @@
           setStyle("fhDv", "color", roundStats.dv <= parDv ? "#f8fafc" : "#fb7185");
         }
         setStyle("fhThr", "color", fine ? "#c4b5fd" : "#f8fafc");
+        // Nose attitude: pitch from local horizontal, and whether LEVEL assist is on
+        const pitchDeg = Math.round((normalizeAngle(active.tilt) * 180) / Math.PI);
+        const attText = active.grounded ? (levelAssist ? "LEVEL" : "FREE") : levelAssist && Math.abs(pitchDeg) < 2 ? "LEVEL" : `${pitchDeg > 0 ? "+" : ""}${pitchDeg}°`;
+        setText("fhAtt", attText);
+        setStyle("fhAtt", "color", levelAssist ? "#7dd3fc" : "#f8fafc");
       }
 
       // =========================================================================
@@ -3938,6 +4097,27 @@
       bindHoldButton("btnAction", "action", () => triggerSmartAction(goats[selectedGoatIdx]));
       bindHoldButton("btnBoost", "boost");
       bindHoldButton("btnPronk", "pronk", () => triggerPronk(goats[selectedGoatIdx]));
+
+      // LEVEL assist toggle (mobile button + Q key), remembered per browser
+      const btnLevel = document.getElementById("btnLevel");
+      function setLevelAssist(on, announce) {
+        levelAssist = on;
+        btnLevel.classList.toggle("on", on);
+        btnLevel.setAttribute("aria-pressed", String(on));
+        saveJSON("levelAssist", on);
+        if (announce) showToast(on ? "🛩 Level Assist ON: nose returns to horizontal" : "🛩 Level Assist OFF: free attitude");
+      }
+      setLevelAssist(loadJSON("levelAssist", true), false);
+      btnLevel.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        setLevelAssist(!levelAssist, true);
+      });
+      window.addEventListener("keydown", (e) => {
+        const tag = e.target && e.target.tagName;
+        if (e.code === "KeyQ" && !e.repeat && !tutorialOpen && !resultsOpen && tag !== "INPUT") {
+          setLevelAssist(!levelAssist, true);
+        }
+      });
 
       // FINE is a latching toggle (tap on / tap off), not a hold button
       const btnFine = document.getElementById("btnFine");
