@@ -1,0 +1,3684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Lunar Goats: Orbital Herding</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: #040711;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      touch-action: none;
+    }
+
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Compact Single-Row Top HUD Bar (38-44px height + safe-area-inset-top) */
+    #topHudBar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      min-height: calc(env(safe-area-inset-top, 0px) + 40px);
+      padding: calc(env(safe-area-inset-top, 0px) + 5px) 10px 5px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      z-index: 20;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(4, 7, 17, 0.88) 0%, rgba(4, 7, 17, 0) 100%);
+    }
+
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      pointer-events: auto;
+      flex-wrap: nowrap;
+    }
+
+    .pill-btn, .pill-badge {
+      height: 30px;
+      padding: 0 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .pill-btn:active {
+      transform: scale(0.95);
+    }
+
+    .pill-btn.active {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: rgba(52, 211, 153, 0.65);
+      color: #a7f3d0;
+    }
+
+    .pill-badge.orbit-lock {
+      background: rgba(16, 185, 129, 0.28);
+      border-color: #34d399;
+      color: #6ee7b7;
+      animation: pulseLock 0.8s infinite alternate;
+    }
+
+    @keyframes pulseLock {
+      from { box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+      to { box-shadow: 0 0 12px rgba(52, 211, 153, 0.55); }
+    }
+
+    /* Collapsible Sandbox Spawn Strip */
+    #spawnDrawer {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 44px);
+      left: 10px;
+      right: 10px;
+      z-index: 19;
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    #spawnDrawer.open {
+      display: flex;
+    }
+
+    /* Startup & Re-openable Controls Tutorial Overlay */
+    #tutorialOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(3, 6, 17, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px) 12px;
+    }
+
+    #tutorialOverlay.open {
+      display: flex;
+    }
+
+    .tutorial-card {
+      width: 100%;
+      max-width: 680px;
+      max-height: 88dvh;
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 20px;
+      padding: 18px 18px 16px 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .tut-header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .tut-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.16);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      color: #6ee7b7;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .tut-header h1 {
+      margin: 0;
+      font-size: clamp(18px, 4.4vw, 24px);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #f8fafc;
+    }
+
+    .tut-subtitle {
+      margin: 6px auto 0 auto;
+      max-width: 540px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: #cbd5e1;
+    }
+
+    .tut-subtitle strong {
+      color: #34d399;
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #e2e8f0;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .ctrl-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .key-tag {
+      flex-shrink: 0;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .key-tag.green {
+      color: #6ee7b7;
+      border-color: rgba(52, 211, 153, 0.45);
+    }
+
+    .academy-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 12px;
+      line-height: 1.42;
+      color: #cbd5e1;
+    }
+
+    .academy-list li {
+      margin-bottom: 4px;
+    }
+
+    .academy-list li:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Primary & Secondary Launch CTA Buttons */
+    .tut-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn-launch-primary {
+      flex: 1 1 200px;
+      min-height: 44px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid #6ee7b7;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #022c22;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.38);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+
+    .btn-launch-primary:hover {
+      filter: brightness(1.06);
+    }
+
+    .btn-launch-primary:active {
+      transform: scale(0.97);
+    }
+
+    .btn-launch-secondary {
+      flex: 1 1 150px;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      background: rgba(30, 41, 59, 0.85);
+      color: #bae6fd;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+
+    .btn-launch-secondary:hover {
+      background: rgba(51, 65, 85, 0.9);
+    }
+
+    .btn-launch-secondary:active {
+      transform: scale(0.97);
+    }
+
+    /* Toast Event Banner */
+    #toastBanner {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 46px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 18;
+      padding: 5px 13px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #e0f2fe;
+      font-size: 12px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      white-space: nowrap;
+      max-width: 92vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #toastBanner.show {
+      opacity: 1;
+    }
+
+    /* Corner-Pinned Semi-Transparent Thumb Controls */
+    #touchControls {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 12px) 12px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .touch-left-row {
+      display: flex;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .touch-right-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 54px);
+      grid-template-rows: 30px 97px;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .t-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.52);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.15;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .touch-right-grid .t-btn {
+      width: 100%;
+      height: 100%;
+      border-radius: 15px;
+    }
+
+    .t-btn.pressed, .t-btn:active {
+      background: rgba(56, 189, 248, 0.38);
+      border-color: rgba(125, 211, 252, 0.85);
+      transform: scale(0.95);
+    }
+
+    .t-btn.action-btn {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: rgba(251, 191, 36, 0.55);
+      color: #fde68a;
+      font-size: 12px;
+    }
+
+    .t-btn.pronk-btn {
+      background: rgba(16, 185, 129, 0.28);
+      border-color: rgba(52, 211, 153, 0.55);
+      color: #a7f3d0;
+      font-size: 13px;
+    }
+
+    /* FINE throttle toggle sits directly above Boost */
+    .t-btn.fine-btn {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.52);
+      color: #94a3b8;
+    }
+
+    .t-btn.fine-btn.on {
+      background: rgba(168, 85, 247, 0.35);
+      border-color: rgba(196, 181, 253, 0.85);
+      color: #ede9fe;
+    }
+
+    .touch-right-grid .action-btn,
+    .touch-right-grid .boost-btn,
+    .touch-right-grid .pronk-btn {
+      grid-row: 2;
+    }
+
+    .t-btn.boost-btn {
+      background: rgba(14, 165, 233, 0.28);
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #bae6fd;
+      font-size: 12px;
+    }
+
+    /* ---- Welcome menu (compact) ---- */
+    #tutorialOverlay .tutorial-card {
+      max-width: 520px;
+    }
+
+    #tutorialOverlay .tut-header h1 {
+      font-size: clamp(22px, 6vw, 30px);
+      letter-spacing: 0.06em;
+    }
+
+    #tutorialOverlay .tut-actions {
+      margin-top: 4px;
+    }
+
+    .btn-launch-primary {
+      flex-basis: 100%;
+    }
+
+    .btn-launch-secondary.subtle {
+      border-color: rgba(148, 163, 184, 0.35);
+      color: #cbd5e1;
+    }
+
+    .menu-note {
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 8px 0 12px 0;
+    }
+
+    .menu-section {
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      padding: 0 12px;
+    }
+
+    .menu-section > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .menu-section > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .menu-section > summary::after {
+      content: "▸";
+      margin-left: auto;
+      color: #64748b;
+      transition: transform 0.15s ease;
+    }
+
+    .menu-section[open] > summary::after {
+      transform: rotate(90deg);
+    }
+
+    .menu-section[open] {
+      padding-bottom: 10px;
+    }
+
+    .menu-section .academy-list {
+      padding-left: 16px;
+    }
+
+    /* Only show the controls for this device */
+    .ctrl-desktop {
+      display: none;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .ctrl-desktop {
+        display: block;
+      }
+
+      .ctrl-touch {
+        display: none;
+      }
+    }
+
+    .ach-count {
+      font-size: 11px;
+      color: #fbbf24;
+      font-weight: 800;
+    }
+
+    .ach-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .ach-item {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      opacity: 0.5;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .ach-item.on {
+      opacity: 1;
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+
+    .ach-item b {
+      display: block;
+      color: #f8fafc;
+    }
+
+    .ach-item small {
+      color: #94a3b8;
+    }
+
+    .menu-footer {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 380px) {
+      .ach-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ---- Round results ---- */
+    #resultsOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(3, 6, 17, 0.6);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    #resultsOverlay.open {
+      display: flex;
+    }
+
+    .results-card {
+      max-width: 420px;
+    }
+
+    .res-stars {
+      font-size: 40px;
+      letter-spacing: 6px;
+      margin-top: 6px;
+    }
+
+    .res-stars .star {
+      color: #334155;
+    }
+
+    .res-stars .star.on {
+      color: #fbbf24;
+      text-shadow: 0 0 14px rgba(251, 191, 36, 0.6);
+    }
+
+    .res-star-key {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .res-star-key .on {
+      color: #fcd34d;
+    }
+
+    .res-grid {
+      background: rgba(30, 41, 59, 0.6);
+      border-radius: 12px;
+      padding: 6px 12px;
+      margin: 10px 0;
+    }
+
+    .res-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+    }
+
+    .res-row:last-child {
+      border-bottom: none;
+    }
+
+    .res-row .good {
+      color: #34d399;
+    }
+
+    .res-row .bad {
+      color: #fb7185;
+    }
+
+    .res-score,
+    .res-daily {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .res-points {
+      font-size: 26px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .res-best {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .res-best.new {
+      color: #fbbf24;
+      font-weight: 800;
+    }
+
+    .res-daily-rounds {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .res-ach {
+      display: none;
+      text-align: center;
+      font-size: 12px;
+      color: #fde68a;
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      border-radius: 10px;
+      padding: 6px 10px;
+      margin-bottom: 10px;
+    }
+
+    /* ---- Objectives in the flight readout ---- */
+    #flightHud .fh-item.scored-only.off {
+      display: none;
+    }
+
+    /* Live Flight Readout (in-game telemetry) */
+    #flightHud {
+      position: fixed;
+      left: 12px;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 154px);
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 2px 10px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+      max-width: 60vw;
+    }
+
+    #flightHud .fh-item {
+      display: flex;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    #flightHud .fh-label {
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    #flightHud .fh-val {
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
+    #flightHud.hidden {
+      display: none;
+    }
+
+    /* Narrow phones: tighten the top bar so the LOCK badge doesn't push buttons off-screen */
+    @media (max-width: 440px) {
+      #topHudBar {
+        padding-left: 6px;
+        padding-right: 6px;
+        gap: 4px;
+      }
+
+      .hud-group {
+        gap: 3px;
+      }
+
+      .pill-btn, .pill-badge {
+        height: 28px;
+        padding: 0 7px;
+        font-size: 11px;
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      #touchControls {
+        display: none;
+      }
+
+      #flightHud {
+        bottom: 12px;
+        grid-template-columns: repeat(9, auto);
+        font-size: 12px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Compact Single-Row Top HUD Bar -->
+  <div id="topHudBar">
+    <div class="hud-group">
+      <button id="btnMode" class="pill-btn active" title="Switch Game Mode">Herding</button>
+      <div id="badgeStatus" class="pill-badge">R1 • 0/3</div>
+      <div id="badgeLock" class="pill-badge orbit-lock" style="display:none;">LOCK 5.0s</div>
+      <button id="btnSpawnToggle" class="pill-btn" style="display:none;">+ Spawn</button>
+    </div>
+
+    <div class="hud-group">
+      <button id="btnSwitchGoat" class="pill-btn" title="Cycle Active Goat (Tab)">🐐 #1</button>
+      <button id="btnZoomReset" class="pill-btn" title="Tap or Click to Reset Auto-Fit Zoom">Auto</button>
+      <button id="btnMute" class="pill-btn" title="Toggle Audio">🔊</button>
+      <button id="btnHelp" class="pill-btn" title="Controls Tutorial">?</button>
+    </div>
+  </div>
+
+  <!-- Collapsible Sandbox Spawn Strip -->
+  <div id="spawnDrawer">
+    <button class="pill-btn" data-spawn="adult">+ Adult Goat</button>
+    <button class="pill-btn" data-spawn="kid">+ Baby Kid</button>
+    <button class="pill-btn" data-spawn="boulder">+ Boulder</button>
+    <button class="pill-btn" data-spawn="canister">+ O2 Tank</button>
+    <button class="pill-btn" data-spawn="moss">+ Moon-Moss</button>
+    <button class="pill-btn" data-spawn="ufo">🛸 Summon UFO</button>
+    <button class="pill-btn" data-spawn="reset">↺ Reset</button>
+  </div>
+
+  <!-- Toast Event Notification -->
+  <div id="toastBanner"></div>
+
+  <!-- Live Flight Readout for the Active Goat -->
+  <div id="flightHud" class="hidden" aria-live="off">
+    <div class="fh-item"><span class="fh-label">STATE</span><span id="fhState" class="fh-val">GROUNDED</span></div>
+    <div class="fh-item"><span class="fh-label">ALT</span><span id="fhAlt" class="fh-val">0</span></div>
+    <div class="fh-item"><span class="fh-label">SPD</span><span id="fhSpd" class="fh-val">0</span></div>
+    <div class="fh-item"><span class="fh-label">Ap</span><span id="fhAp" class="fh-val">—</span></div>
+    <div class="fh-item"><span class="fh-label">Pe</span><span id="fhPe" class="fh-val">—</span></div>
+    <div class="fh-item"><span class="fh-label">FUEL</span><span id="fhFuel" class="fh-val">100%</span></div>
+    <div class="fh-item"><span class="fh-label">THR</span><span id="fhThr" class="fh-val">0%</span></div>
+    <div class="fh-item scored-only" id="fhTimeItem"><span class="fh-label">TIME</span><span id="fhTime" class="fh-val">0s</span></div>
+    <div class="fh-item scored-only" id="fhDvItem"><span class="fh-label">Δv</span><span id="fhDv" class="fh-val">0</span></div>
+  </div>
+
+  <!-- Welcome / Menu Overlay (re-openable with ?) -->
+  <div id="tutorialOverlay" class="open" role="dialog" aria-modal="true" aria-labelledby="tutHeading">
+    <div class="tutorial-card">
+      <div class="tut-header">
+        <h1 id="tutHeading">🐐 LUNAR GOATS</h1>
+        <p class="tut-subtitle">Get your whole herd into <strong>safe green orbits</strong> and hold them for <strong>5 seconds</strong>. Use as little fuel as you can.</p>
+      </div>
+
+      <div class="tut-actions">
+        <button id="btnLaunchHerd" class="btn-launch-primary">🚀 LAUNCH HERD</button>
+        <button id="btnLaunchDaily" class="btn-launch-secondary">📅 DAILY CHALLENGE</button>
+        <button id="btnLaunchSandbox" class="btn-launch-secondary subtle">🧪 SANDBOX</button>
+      </div>
+      <div id="dailyBestLine" class="menu-note">📅 Today's Daily Challenge: not played yet</div>
+
+      <details class="menu-section">
+        <summary>🎮 Controls</summary>
+        <div class="ctrl-list ctrl-desktop">
+          <div class="ctrl-row"><span class="key-tag">◀ ▶ / A D</span><span>Run, or pitch the nose in the air</span></div>
+          <div class="ctrl-row"><span class="key-tag green">Space / ▲</span><span>Pronk (jump). Time landings for 3x chains</span></div>
+          <div class="ctrl-row"><span class="key-tag">X / W</span><span>Jetpack. Tap to nudge, hold to ramp to full</span></div>
+          <div class="ctrl-row"><span class="key-tag">Shift</span><span>Fine thrust (25% max) for precise trims</span></div>
+          <div class="ctrl-row"><span class="key-tag">Z</span><span>Action: graze moss, headbutt / nudge, or bleat</span></div>
+          <div class="ctrl-row"><span class="key-tag">Click / Tab</span><span>Switch goat. Wheel zooms, double-click resets</span></div>
+        </div>
+        <div class="ctrl-list ctrl-touch">
+          <div class="ctrl-row"><span class="key-tag">◀ ▶</span><span>Run, or pitch the nose in the air</span></div>
+          <div class="ctrl-row"><span class="key-tag green">⬆ Pronk</span><span>Jump. Time landings for 3x chains</span></div>
+          <div class="ctrl-row"><span class="key-tag">🔥 Boost</span><span>Jetpack. Tap to nudge, hold to ramp to full</span></div>
+          <div class="ctrl-row"><span class="key-tag">FINE</span><span>Toggle 25% thrust for precise trims</span></div>
+          <div class="ctrl-row"><span class="key-tag">⚡ Act</span><span>Graze moss, headbutt / nudge, or bleat</span></div>
+          <div class="ctrl-row"><span class="key-tag">Tap goat</span><span>Switch goat. Pinch zooms, double-tap resets</span></div>
+        </div>
+      </details>
+
+      <details class="menu-section">
+        <summary>🎓 Flight Tips</summary>
+        <ul class="academy-list">
+          <li><strong>Pronk for height, then burn sideways.</strong> Coast up to the <strong>Ap</strong> marker, point the nose level and boost until <strong>Pe</strong> clears the ground and the path turns green.</li>
+          <li><strong>Red line = trouble.</strong> LOST or ESCAPE means the goat will drift away. Turn around and burn to slow down.</li>
+          <li><strong>Save fuel.</strong> Stars come from beating the par time and the Δv par. A headbutt nudge can push a herd-mate into orbit for free.</li>
+          <li><strong>Rounds rotate:</strong> full orbit → altitude band → ring gates. Moss refuels you and grows kids. Headbutt the UFO to stop abductions.</li>
+        </ul>
+      </details>
+
+      <details class="menu-section">
+        <summary>🏆 Achievements <span id="achCount" class="ach-count">0/11</span></summary>
+        <div id="achGrid" class="ach-grid"></div>
+      </details>
+
+      <div class="menu-footer">Live readout during play: <b>ALT · SPD · Ap · Pe · FUEL · THR</b></div>
+    </div>
+  </div>
+
+  <!-- Round Results Overlay -->
+  <div id="resultsOverlay" role="dialog" aria-modal="true" aria-labelledby="resHeading">
+    <div class="tutorial-card results-card">
+      <div class="tut-header">
+        <div id="resBadge" class="tut-badge">Full Herd Orbit</div>
+        <h1 id="resHeading">Round Cleared!</h1>
+        <div id="resStars" class="res-stars"></div>
+        <div id="resStarKey" class="res-star-key"></div>
+      </div>
+      <div id="resGrid" class="res-grid"></div>
+      <div id="resScore" class="res-score"></div>
+      <div id="resAch" class="res-ach"></div>
+      <div id="resDaily" class="res-daily"></div>
+      <div class="tut-actions">
+        <button id="btnResPrimary" class="btn-launch-primary">▶ NEXT ROUND</button>
+        <button id="btnResSecondary" class="btn-launch-secondary">↻ RETRY ROUND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Corner-Pinned Semi-Transparent 4-Control Thumb Layout -->
+  <div id="touchControls">
+    <div class="touch-left-row">
+      <button id="btnLeft" class="t-btn">◀<br>Left</button>
+      <button id="btnRight" class="t-btn">▶<br>Right</button>
+    </div>
+
+    <div class="touch-right-grid">
+      <button id="btnFine" class="t-btn fine-btn" aria-pressed="false">FINE</button>
+      <button id="btnAction" class="t-btn action-btn">⚡<br>Act</button>
+      <button id="btnBoost" class="t-btn boost-btn">🔥<br>Boost</button>
+      <button id="btnPronk" class="t-btn pronk-btn">⬆<br>Pronk</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // =========================================================================
+      // 1. CORE PHYSICS & WORLD CONSTANTS (EXAGGERATED PLANETOID SCALE)
+      // =========================================================================
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const MOON_R = 275;
+      const GM = 38000000;
+      const SURFACE_G = GM / (MOON_R * MOON_R);
+      const ORBIT_SPEED_SURFACE = Math.sqrt(GM / MOON_R);
+      const ESCAPE_SPEED_SURFACE = Math.sqrt((2 * GM) / MOON_R);
+      const MAX_FAR_R = 1350;
+      const ORBIT_LOCK_REQUIRED = 5.0;
+
+      // Jetpack throttle tuning
+      const THROTTLE_MIN = 0.15;        // thrust fraction the instant Boost is pressed
+      const THROTTLE_RAMP_TIME = 0.45;  // seconds of holding to reach full thrust
+      const FINE_THROTTLE_CAP = 0.25;   // max thrust in fine mode
+
+      // Headbutt (goat-on-goat) tuning
+      const KID_MASS = 0.55;            // relative to an adult
+      const RAM_RESTITUTION = 0.5;      // 0 = goats stick, 1 = perfectly bouncy
+      const RAM_NUDGE_DV = 40;          // base shove, even with zero closing speed
+      const RAM_FAINT_DV = 140;         // target faints only above this velocity change
+
+      // Landmark Angles (radians)
+      const CRATER_CENTER = -Math.PI * 0.5;
+      const CRATER_HALF_W = 0.52;
+      const CRATER_DEPTH = 38;
+      const LANDER_ANGLE = 0.42;
+      const FLAG_ANGLE = -2.42;
+
+      // =========================================================================
+      // 2. GAME STATE & CAMERA
+      // =========================================================================
+      let mode = "herding";
+      let round = 1;
+      let tutorialOpen = true;
+      let hasStartedOnce = false;
+      let simTime = 0;
+      let orbitLockTimer = 0;
+      let screenShake = 0;
+      let meteorFlash = 0;
+      let meteorTimer = 14;
+      let ufoTimer = 22;
+
+      let goats = [];
+      let selectedGoatIdx = 0;
+      let boulders = [];
+      let canisters = [];
+      let mossPatches = [];
+      let particles = [];
+      let radioRings = [];
+      let ufo = null;
+      let returningAbductees = [];
+
+      const camera = {
+        x: 0,
+        y: 0,
+        zoom: 0.75,
+        targetZoom: 0.75,
+        manualZoom: null
+      };
+
+      // Starfield
+      const stars = Array.from({ length: 140 }, () => ({
+        x: Math.random() * 2400,
+        y: Math.random() * 2400,
+        r: 0.7 + Math.random() * 1.6,
+        twinkle: Math.random() * Math.PI * 2,
+        parallax: 0.08 + Math.random() * 0.14
+      }));
+
+      // Input State
+      const keys = {};
+      const touchState = {
+        left: false,
+        right: false,
+        pronk: false,
+        boost: false,
+        action: false
+      };
+
+      // Fine-thrust mode: hold Shift on desktop, or latch the FINE toggle on mobile
+      let fineToggle = false;
+      function isFineThrust() {
+        return fineToggle || Boolean(keys["ShiftLeft"] || keys["ShiftRight"]);
+      }
+
+      // Context-Sensitive Smart Action: Graze Moss/O2 Valve -> Headbutt Ram -> Vacuum Bleat
+      function triggerSmartAction(g) {
+        if (!g || tutorialOpen || g.faintTimer > 0) return;
+
+        const theta = Math.atan2(g.y, g.x);
+        const speed = Math.hypot(g.vx, g.vy);
+
+        // 1. If grounded and moving slowly near Moon-Moss or an intact O2 valve, nibble/graze it
+        if (g.grounded && speed < 95 && g.nibbleCooldown <= 0) {
+          for (const c of canisters) {
+            if (!c.ruptured && Math.hypot(c.x - g.x, c.y - g.y) < 38) {
+              triggerNibble(g);
+              return;
+            }
+          }
+          for (const m of mossPatches) {
+            if (m.energy > 0.25 && Math.abs(normalizeAngle(theta - m.theta)) < 0.14) {
+              triggerNibble(g);
+              return;
+            }
+          }
+        }
+
+        // 2. Check if moving, airborne, or near any rammable target (goat, boulder, O2 tank, UFO)
+        const bodyAngle = theta + Math.PI * 0.5 + g.tilt;
+        const dirX = Math.cos(bodyAngle) * g.facing;
+        const dirY = Math.sin(bodyAngle) * g.facing;
+        const hx = g.x + dirX * 16;
+        const hy = g.y + dirY * 16;
+
+        // On the ground, a running goat can always charge. In the air, only ram
+        // something actually within reach, so Z never knocks a goat out of orbit.
+        let hasRamTarget = g.grounded && speed >= 65;
+        if (!hasRamTarget) {
+          for (const other of goats) {
+            if (other !== g && Math.hypot(other.x - hx, other.y - hy) < 46) {
+              hasRamTarget = true;
+              break;
+            }
+          }
+        }
+        if (!hasRamTarget) {
+          for (const b of boulders) {
+            if (Math.hypot(b.x - hx, b.y - hy) < 46 + b.radius) {
+              hasRamTarget = true;
+              break;
+            }
+          }
+        }
+        if (!hasRamTarget) {
+          for (const c of canisters) {
+            if (Math.hypot(c.x - hx, c.y - hy) < 46 + c.radius) {
+              hasRamTarget = true;
+              break;
+            }
+          }
+        }
+        if (!hasRamTarget && ufo && Math.hypot(ufo.x - hx, ufo.y - hy) < 92) {
+          hasRamTarget = true;
+        }
+
+        if (hasRamTarget) {
+          triggerHeadbutt(g);
+        } else {
+          // 3. Standing idle on bare moon rock: let out a Vacuum Bleat radio ring
+          triggerBleat(g);
+        }
+      }
+
+      // Select any goat directly by screen coordinates (tap or click)
+      function selectGoatAtScreenPos(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = clientX - rect.left;
+        const sy = clientY - rect.top;
+        const worldX = (sx - camera.x) / camera.zoom;
+        const worldY = (sy - camera.y) / camera.zoom;
+
+        let closestIdx = -1;
+        let closestDist = 52 / Math.max(0.45, camera.zoom);
+        for (let i = 0; i < goats.length; i++) {
+          const d = Math.hypot(goats[i].x - worldX, goats[i].y - worldY);
+          if (d < closestDist) {
+            closestDist = d;
+            closestIdx = i;
+          }
+        }
+
+        if (closestIdx !== -1 && closestIdx !== selectedGoatIdx) {
+          selectedGoatIdx = closestIdx;
+          const g = goats[selectedGoatIdx];
+          spawnRadioRing(g.x, g.y, "#38bdf8", 48);
+          playSound("bleat", g.isKid ? 1.45 : 1.1);
+          updateTopHud();
+          showToast(`${g.isKid ? "🍼" : "🐐"} Controlling ${g.palette.name}`);
+          return true;
+        }
+        return false;
+      }
+
+      // =========================================================================
+      // 3. WEB AUDIO SYNTHESIZER (ZERO EXTERNAL ASSETS)
+      // =========================================================================
+      let audioCtx = null;
+      let muted = false;
+      let lastThrusterSoundTime = 0;
+
+      function ensureAudio() {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) audioCtx = new AudioContext();
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+      }
+
+      function playSound(type, pitchMult = 1) {
+        if (muted) return;
+        ensureAudio();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === "pronk") {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(190 * pitchMult, now);
+          osc.frequency.exponentialRampToValueAtTime(460 * pitchMult, now + 0.14);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        } else if (type === "bleat") {
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(155 * pitchMult, now);
+          osc.frequency.linearRampToValueAtTime(135 * pitchMult, now + 0.08);
+          osc.frequency.linearRampToValueAtTime(175 * pitchMult, now + 0.18);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        } else if (type === "ram") {
+          osc.type = "square";
+          osc.frequency.setValueAtTime(130, now);
+          osc.frequency.exponentialRampToValueAtTime(48, now + 0.14);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === "nibble") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        } else if (type === "thruster") {
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(95 + Math.random() * 25, now);
+          osc.frequency.exponentialRampToValueAtTime(55, now + 0.08);
+          gain.gain.setValueAtTime(0.055, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === "ufo") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.linearRampToValueAtTime(480, now + 0.15);
+          osc.frequency.linearRampToValueAtTime(300, now + 0.3);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+          osc.start(now);
+          osc.stop(now + 0.32);
+        } else if (type === "lock") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.09);
+          osc.frequency.setValueAtTime(783.99, now + 0.18);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === "ring") {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(880 * pitchMult, now);
+          osc.frequency.exponentialRampToValueAtTime(1320 * pitchMult, now + 0.12);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        }
+      }
+
+      // =========================================================================
+      // 4. PROCEDURAL CIRCULAR MOON TERRAIN & SURFACE NORMALS
+      // =========================================================================
+      function normalizeAngle(a) {
+        while (a > Math.PI) a -= Math.PI * 2;
+        while (a < -Math.PI) a += Math.PI * 2;
+        return a;
+      }
+
+      function getTerrainRadius(theta) {
+        let r = MOON_R;
+        r += Math.sin(theta * 5) * 4.5 + Math.cos(theta * 9 + 0.7) * 2.5;
+
+        const d1 = normalizeAngle(theta - 1.25);
+        if (Math.abs(d1) < 0.28) {
+          const t = d1 / 0.28;
+          r -= (1 - t * t) * 14 - Math.exp(-Math.pow((Math.abs(t) - 1) * 4, 2)) * 3;
+        }
+        const d2 = normalizeAngle(theta + 2.15);
+        if (Math.abs(d2) < 0.24) {
+          const t = d2 / 0.24;
+          r -= (1 - t * t) * 12 - Math.exp(-Math.pow((Math.abs(t) - 1) * 4, 2)) * 3;
+        }
+
+        // Giant Launch Crater Half-Pipe at top (-PI/2)
+        const dCrater = normalizeAngle(theta - CRATER_CENTER);
+        if (Math.abs(dCrater) < CRATER_HALF_W) {
+          const t = dCrater / CRATER_HALF_W;
+          const bowl = (1 - t * t) * CRATER_DEPTH;
+          const rim = Math.exp(-Math.pow((Math.abs(t) - 0.96) * 6, 2)) * 6;
+          r = r - bowl + rim;
+        }
+        return r;
+      }
+
+      function getSurfaceNormal(theta) {
+        const eps = 0.004;
+        const r1 = getTerrainRadius(theta - eps);
+        const r2 = getTerrainRadius(theta + eps);
+        const x1 = Math.cos(theta - eps) * r1;
+        const y1 = Math.sin(theta - eps) * r1;
+        const x2 = Math.cos(theta + eps) * r2;
+        const y2 = Math.sin(theta + eps) * r2;
+        const tx = x2 - x1;
+        const ty = y2 - y1;
+        const len = Math.hypot(tx, ty) || 1;
+        return {
+          nx: ty / len,
+          ny: -tx / len,
+          tx: tx / len,
+          ty: ty / len
+        };
+      }
+
+      // =========================================================================
+      // 5. TOAST BANNER & ENTITY FACTORIES
+      // =========================================================================
+      let toastTimeout = null;
+      function showToast(msg) {
+        if (tutorialOpen) return;
+        const el = document.getElementById("toastBanner");
+        el.textContent = msg;
+        el.classList.add("show");
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => el.classList.remove("show"), 2600);
+      }
+
+      const GOAT_PALETTES = [
+        { coat: "#f8fafc", horns: "#cbd5e1", visor: "#38bdf8", name: "Barnaby" },
+        { coat: "#e2e8f0", horns: "#94a3b8", visor: "#34d399", name: "Clover" },
+        { coat: "#fde68a", horns: "#d97706", visor: "#f472b6", name: "Pip" },
+        { coat: "#cbd5e1", horns: "#64748b", visor: "#a78bfa", name: "Nibbles" },
+        { coat: "#fed7aa", horns: "#ea580c", visor: "#22d3ee", name: "Bramble" }
+      ];
+
+      function createGoat(theta, isKid = false, alienMutated = false) {
+        const surfR = getTerrainRadius(theta);
+        const halfH = isKid ? 11 : 17;
+        const r = surfR + halfH;
+        const pal = GOAT_PALETTES[goats.length % GOAT_PALETTES.length];
+        return {
+          id: Math.random().toString(36).slice(2, 8),
+          x: Math.cos(theta) * r,
+          y: Math.sin(theta) * r,
+          vx: 0,
+          vy: 0,
+          facing: Math.random() < 0.5 ? 1 : -1,
+          tilt: 0,
+          angVel: 0,
+          grounded: true,
+          isKid,
+          age: 0,
+          alienMutated,
+          fuel: 1.0,
+          boosting: false,
+          boostHold: 0,
+          throttle: 0,
+          faintTimer: 0,
+          pronkChain: 0,
+          sinceLandTimer: 99,
+          jumpBufferTimer: 0,
+          ramCooldown: 0,
+          nibbleCooldown: 0,
+          zoomieTimer: isKid ? 2 + Math.random() * 3 : 0,
+          aiDecisionTimer: 0.5 + Math.random() * 1.5,
+          aiMoveDir: 0,
+          legPhase: Math.random() * Math.PI * 2,
+          orbitState: "GROUNDED",
+          orbitEl: null,
+          trajectory: [],
+          trajectoryClosed: false,
+          slingshotTimer: 0,
+          slingshotFromOrbit: false,
+          palette: pal
+        };
+      }
+
+      // Remove a goat without silently handing control to a different goat.
+      function removeGoatAt(idx) {
+        goats.splice(idx, 1);
+        if (idx < selectedGoatIdx) {
+          selectedGoatIdx -= 1;
+        } else if (idx === selectedGoatIdx) {
+          selectedGoatIdx = Math.min(selectedGoatIdx, Math.max(0, goats.length - 1));
+          const next = goats[selectedGoatIdx];
+          if (next) showToast(`${next.isKid ? "🍼" : "🐐"} Now controlling ${next.palette.name}`);
+        }
+        if (selectedGoatIdx >= goats.length) selectedGoatIdx = Math.max(0, goats.length - 1);
+      }
+
+      function createBoulder(theta) {
+        const r = getTerrainRadius(theta) + 18;
+        return {
+          x: Math.cos(theta) * r,
+          y: Math.sin(theta) * r,
+          vx: 0,
+          vy: 0,
+          radius: 18,
+          angle: Math.random() * Math.PI * 2,
+          angVel: 0
+        };
+      }
+
+      function createCanister(theta) {
+        const r = getTerrainRadius(theta) + 12;
+        return {
+          x: Math.cos(theta) * r,
+          y: Math.sin(theta) * r,
+          vx: 0,
+          vy: 0,
+          radius: 11,
+          angle: theta + Math.PI * 0.5,
+          angVel: 0,
+          ruptured: false,
+          thrustTimer: 0
+        };
+      }
+
+      function createMoss(theta) {
+        return {
+          theta: normalizeAngle(theta),
+          energy: 1.0
+        };
+      }
+
+      function spawnParticle(x, y, vx, vy, color, life, size = 3) {
+        if (particles.length > 260) particles.shift();
+        particles.push({ x, y, vx, vy, color, life, maxLife: life, size });
+      }
+
+      function spawnRadioRing(x, y, color = "#38bdf8", maxR = 130) {
+        radioRings.push({ x, y, r: 10, maxR, color, alpha: 0.95 });
+      }
+
+      // =========================================================================
+      // 5b. SCORING, CHALLENGE ROUNDS, DAILY CHALLENGE & ACHIEVEMENTS
+      // =========================================================================
+      // Par values (tunable). Δv = speed change from YOUR jetpack burns only.
+      const PAR_DV_PER_GOAT = { orbit: 250, band: 320, rings: 380 };
+      const PAR_TIME_PER_GOAT = { orbit: 30, band: 40, rings: 45 };
+      const PAR_TIME_BASE = 15;
+      const SCORE_BASE = 1000;
+      const SCORE_PER_SEC_UNDER_PAR = 15;
+      const SCORE_PER_DV_UNDER_PAR = 1;
+      const LOST_PENALTY = 200;
+      const ABDUCT_PENALTY = 100;
+      const DAILY_ROUNDS = 3;
+
+      const OBJECTIVE_ORDER = ["orbit", "band", "rings"];
+      const OBJECTIVE_NAMES = { orbit: "Full Herd Orbit", band: "Altitude Band", rings: "Ring Gates" };
+
+      let objective = { type: "orbit", bandLo: 0, bandHi: 0, rings: [] };
+      let roundStats = freshStats(0);
+      let resultsOpen = false;
+      let dailyTotal = 0;
+      let dailyRoundScores = [];
+
+      function freshStats(goatCount) {
+        return { time: 0, dv: 0, lost: 0, abducted: 0, headbutts: 0, goats: goatCount };
+      }
+
+      function isScoredMode() {
+        return mode === "herding" || mode === "daily";
+      }
+
+      // localStorage can be unavailable (privacy modes, sandboxed frames): never throw
+      const STORE_PREFIX = "lunarGoats.";
+      function loadJSON(key, fallback) {
+        try {
+          const v = localStorage.getItem(STORE_PREFIX + key);
+          return v ? JSON.parse(v) : fallback;
+        } catch (e) {
+          return fallback;
+        }
+      }
+      function saveJSON(key, value) {
+        try {
+          localStorage.setItem(STORE_PREFIX + key, JSON.stringify(value));
+        } catch (e) {
+          /* storage unavailable: progress just isn't kept */
+        }
+      }
+
+      function todayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+
+      // Small deterministic RNG so everyone gets the same daily layout
+      function seededRng(seedStr) {
+        let h = 1779033703 ^ seedStr.length;
+        for (let i = 0; i < seedStr.length; i++) {
+          h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+          h = (h << 13) | (h >>> 19);
+        }
+        let a = h >>> 0;
+        return () => {
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function buildObjective() {
+        objective = { type: "orbit", bandLo: 0, bandHi: 0, rings: [] };
+        if (!isScoredMode()) return;
+
+        const rng = mode === "daily" ? seededRng(`lunar-goats:${todayKey()}:${round}`) : Math.random;
+        const type = OBJECTIVE_ORDER[(round - 1) % OBJECTIVE_ORDER.length];
+        const cycle = Math.floor((round - 1) / OBJECTIVE_ORDER.length);
+        objective.type = type;
+
+        if (type === "band") {
+          const width = Math.max(60, 120 - cycle * 20);
+          const lo = Math.round((100 + rng() * 80) / 5) * 5;
+          objective.bandLo = lo;
+          objective.bandHi = lo + width;
+        } else if (type === "rings") {
+          const count = Math.min(6, 3 + cycle);
+          const offset = rng() * Math.PI * 2;
+          for (let i = 0; i < count; i++) {
+            const ang = offset + (i / count) * Math.PI * 2 + (rng() - 0.5) * 0.5;
+            const alt = 120 + rng() * 140;
+            const r = MOON_R + alt;
+            objective.rings.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r, radius: 30, collected: false, pulse: rng() * 6 });
+          }
+        }
+      }
+
+      // Does this goat satisfy the current round's objective?
+      function goatQualifies(g) {
+        if (g.orbitState !== "ORBIT") return false;
+        if (objective.type === "band" && g.orbitEl) {
+          return g.orbitEl.pe - MOON_R >= objective.bandLo && g.orbitEl.ap - MOON_R <= objective.bandHi;
+        }
+        return true;
+      }
+
+      function ringsRemaining() {
+        return objective.rings.filter((r) => !r.collected).length;
+      }
+
+      function objectiveMet() {
+        if (goats.length === 0) return false;
+        if (objective.type === "rings" && ringsRemaining() > 0) return false;
+        return goats.every(goatQualifies);
+      }
+
+      function objectiveIntro() {
+        if (objective.type === "band") {
+          return `📏 Keep every orbit inside ${objective.bandLo}–${objective.bandHi}`;
+        }
+        if (objective.type === "rings") {
+          return `💫 Fly through all ${objective.rings.length} rings, then orbit the herd`;
+        }
+        return "🎯 Put every goat in a safe green orbit";
+      }
+
+      // ---- Achievements ----
+      const ACHIEVEMENTS = [
+        { id: "liftoff", icon: "🚀", name: "Liftoff", desc: "Put a goat into a safe orbit" },
+        { id: "shepherd", icon: "🐐", name: "Shepherd", desc: "Clear a round" },
+        { id: "ace", icon: "⭐", name: "Ace Herder", desc: "Earn 3 stars on a round" },
+        { id: "frugal", icon: "⛽", name: "Frugal Flock", desc: "Clear a round under half the Δv par" },
+        { id: "pacifist", icon: "🕊️", name: "Pacifist", desc: "Clear round 2+ without headbutting" },
+        { id: "slingshot", icon: "🎯", name: "Slingshot", desc: "Nudge another goat into a safe orbit" },
+        { id: "bodycheck", icon: "🛸", name: "Body-Check", desc: "Headbutt the UFO away" },
+        { id: "bandleader", icon: "📏", name: "Band Leader", desc: "Clear an Altitude Band round" },
+        { id: "ringmaster", icon: "💫", name: "Ring Master", desc: "Clear a Ring Gates round" },
+        { id: "nobodyleft", icon: "🤝", name: "Nobody Left Behind", desc: "Clear round 3+ with no goats lost or abducted" },
+        { id: "daily", icon: "📅", name: "Daily Driver", desc: "Finish a Daily Challenge" }
+      ];
+      let unlockedAch = loadJSON("achievements", {});
+      let newlyUnlocked = [];
+
+      function unlockAchievement(id) {
+        if (unlockedAch[id]) return;
+        const a = ACHIEVEMENTS.find((x) => x.id === id);
+        if (!a) return;
+        unlockedAch[id] = Date.now();
+        saveJSON("achievements", unlockedAch);
+        newlyUnlocked.push(id);
+        playSound("lock", 1.5);
+        showToast(`🏆 Achievement: ${a.icon} ${a.name}`);
+        renderAchievementList();
+      }
+
+      function renderAchievementList() {
+        const grid = document.getElementById("achGrid");
+        if (!grid) return;
+        const count = ACHIEVEMENTS.filter((a) => unlockedAch[a.id]).length;
+        document.getElementById("achCount").textContent = `${count}/${ACHIEVEMENTS.length}`;
+        grid.innerHTML = ACHIEVEMENTS.map(
+          (a) =>
+            `<div class="ach-item ${unlockedAch[a.id] ? "on" : ""}" title="${a.desc}">` +
+            `<span class="ach-icon">${unlockedAch[a.id] ? a.icon : "🔒"}</span>` +
+            `<span class="ach-text"><b>${a.name}</b><small>${a.desc}</small></span></div>`
+        ).join("");
+
+        const dailyBest = loadJSON(`daily.${todayKey()}`, null);
+        document.getElementById("dailyBestLine").textContent = dailyBest
+          ? `📅 Today's Daily Challenge best: ${dailyBest.score} pts`
+          : "📅 Today's Daily Challenge: not played yet";
+      }
+
+      // ---- Round results ----
+      function computeRoundResults() {
+        const n = Math.max(1, roundStats.goats);
+        const type = objective.type;
+        const parDv = PAR_DV_PER_GOAT[type] * n;
+        const parTime = PAR_TIME_BASE + PAR_TIME_PER_GOAT[type] * n;
+        const underTime = roundStats.time <= parTime;
+        const underDv = roundStats.dv <= parDv;
+        const stars = 1 + (underTime ? 1 : 0) + (underDv ? 1 : 0);
+        const score = Math.max(
+          100,
+          Math.round(
+            SCORE_BASE +
+              Math.max(0, parTime - roundStats.time) * SCORE_PER_SEC_UNDER_PAR +
+              Math.max(0, parDv - roundStats.dv) * SCORE_PER_DV_UNDER_PAR -
+              roundStats.lost * LOST_PENALTY -
+              roundStats.abducted * ABDUCT_PENALTY
+          )
+        );
+        return { parDv, parTime, underTime, underDv, stars, score };
+      }
+
+      function finishRound() {
+        const res = computeRoundResults();
+        const type = objective.type;
+
+        unlockAchievement("shepherd");
+        if (res.stars === 3) unlockAchievement("ace");
+        if (roundStats.dv < res.parDv * 0.5) unlockAchievement("frugal");
+        if (round >= 2 && roundStats.headbutts === 0) unlockAchievement("pacifist");
+        if (type === "band") unlockAchievement("bandleader");
+        if (type === "rings") unlockAchievement("ringmaster");
+        if (round >= 3 && roundStats.lost === 0 && roundStats.abducted === 0) unlockAchievement("nobodyleft");
+
+        let bestText = "";
+        let isNewBest = false;
+        if (mode === "herding") {
+          const key = `best.r${round}`;
+          const prev = loadJSON(key, null);
+          isNewBest = !prev || res.score > prev.score;
+          if (isNewBest) saveJSON(key, { score: res.score, stars: Math.max(res.stars, prev ? prev.stars : 0) });
+          bestText = isNewBest ? "🏅 NEW BEST for this round!" : `Best for this round: ${prev.score} pts`;
+        } else if (mode === "daily") {
+          dailyRoundScores.push(res.score);
+          dailyTotal += res.score;
+        }
+
+        showResults(res, bestText, isNewBest);
+      }
+
+      function showResults(res, bestText, isNewBest) {
+        resultsOpen = true;
+        clearHeldInputs();
+
+        const dailyFinal = mode === "daily" && round >= DAILY_ROUNDS;
+        const label = mode === "daily" ? `Daily Round ${round}/${DAILY_ROUNDS}` : `Round ${round}`;
+        document.getElementById("resBadge").textContent = OBJECTIVE_NAMES[objective.type];
+        document.getElementById("resHeading").textContent = `${label} Cleared!`;
+
+        const starHtml = [0, 1, 2].map((i) => `<span class="${i < res.stars ? "star on" : "star"}">★</span>`).join("");
+        document.getElementById("resStars").innerHTML = starHtml;
+        document.getElementById("resStarKey").innerHTML =
+          `<span class="on">✓ Cleared</span>` +
+          `<span class="${res.underTime ? "on" : ""}">⏱ Under par time</span>` +
+          `<span class="${res.underDv ? "on" : ""}">⛽ Under Δv par</span>`;
+
+        const row = (k, v, good) => `<div class="res-row"><span>${k}</span><b class="${good === undefined ? "" : good ? "good" : "bad"}">${v}</b></div>`;
+        document.getElementById("resGrid").innerHTML =
+          row("Time", `${roundStats.time.toFixed(1)}s / par ${Math.round(res.parTime)}s`, res.underTime) +
+          row("Your Δv", `${Math.round(roundStats.dv)} / par ${res.parDv}`, res.underDv) +
+          row("Goats lost", `${roundStats.lost}`, roundStats.lost === 0) +
+          row("Abducted", `${roundStats.abducted}`, roundStats.abducted === 0);
+
+        document.getElementById("resScore").innerHTML =
+          `<div class="res-points">${res.score} pts</div><div class="res-best ${isNewBest ? "new" : ""}">${bestText}</div>`;
+
+        const achEl = document.getElementById("resAch");
+        if (newlyUnlocked.length) {
+          achEl.innerHTML =
+            "<b>🏆 Unlocked:</b> " +
+            newlyUnlocked
+              .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
+              .map((a) => `${a.icon} ${a.name}`)
+              .join(" · ");
+          achEl.style.display = "block";
+        } else {
+          achEl.innerHTML = "";
+          achEl.style.display = "none";
+        }
+        newlyUnlocked = [];
+
+        const dailyEl = document.getElementById("resDaily");
+        const primary = document.getElementById("btnResPrimary");
+        const secondary = document.getElementById("btnResSecondary");
+        if (mode === "daily") {
+          dailyEl.style.display = "block";
+          if (dailyFinal) {
+            const key = `daily.${todayKey()}`;
+            const prev = loadJSON(key, null);
+            const newDailyBest = !prev || dailyTotal > prev.score;
+            if (newDailyBest) saveJSON(key, { score: dailyTotal, rounds: dailyRoundScores.slice() });
+            unlockAchievement("daily");
+            if (newlyUnlocked.length) {
+              achEl.innerHTML += (achEl.innerHTML ? " · " : "<b>🏆 Unlocked:</b> ") + "📅 Daily Driver";
+              achEl.style.display = "block";
+              newlyUnlocked = [];
+            }
+            dailyEl.innerHTML =
+              `<div class="res-points">Daily total: ${dailyTotal} pts</div>` +
+              `<div class="res-best ${newDailyBest ? "new" : ""}">${newDailyBest ? "🏅 NEW DAILY BEST!" : `Today's best: ${prev.score} pts`}</div>` +
+              `<div class="res-daily-rounds">${dailyRoundScores.map((s, i) => `R${i + 1}: ${s}`).join(" · ")}</div>`;
+            primary.textContent = "↻ RETRY DAILY";
+            primary.dataset.action = "retryDaily";
+            secondary.textContent = "🏠 MENU";
+            secondary.dataset.action = "menu";
+          } else {
+            dailyEl.innerHTML = `<div class="res-daily-rounds">Daily running total: ${dailyTotal} pts</div>`;
+            primary.textContent = `▶ DAILY ROUND ${round + 1}/${DAILY_ROUNDS}`;
+            primary.dataset.action = "next";
+            secondary.textContent = "🏠 MENU";
+            secondary.dataset.action = "menu";
+          }
+        } else {
+          dailyEl.style.display = "none";
+          primary.textContent = "▶ NEXT ROUND";
+          primary.dataset.action = "next";
+          secondary.textContent = "↻ RETRY ROUND";
+          secondary.dataset.action = "retry";
+        }
+
+        document.getElementById("resultsOverlay").classList.add("open");
+        renderAchievementList();
+      }
+
+      function handleResultsAction(action) {
+        document.getElementById("resultsOverlay").classList.remove("open");
+        resultsOpen = false;
+        if (action === "next") {
+          round += 1;
+          initWorld();
+        } else if (action === "retry") {
+          initWorld();
+        } else if (action === "retryDaily") {
+          round = 1;
+          dailyTotal = 0;
+          dailyRoundScores = [];
+          initWorld();
+        } else if (action === "menu") {
+          if (mode === "daily") {
+            // A finished or abandoned daily restarts next time it's picked
+            hasStartedOnce = false;
+          } else {
+            round += 1;
+            initWorld();
+          }
+          openTutorialOverlay();
+          return;
+        }
+        showToast(objectiveIntro());
+      }
+
+      // =========================================================================
+      // 6. WORLD INITIALIZATION & TUTORIAL MODAL CONTROLS
+      // =========================================================================
+      function initWorld() {
+        goats = [];
+        boulders = [];
+        canisters = [];
+        mossPatches = [];
+        particles = [];
+        radioRings = [];
+        ufo = null;
+        returningAbductees = [];
+        orbitLockTimer = 0;
+
+        // Every round starts with a fair grace period before hazards
+        meteorTimer = 14;
+        ufoTimer = 22;
+
+        const goatCount = isScoredMode() ? Math.min(2 + round, 6) : 4;
+        roundStats = freshStats(goatCount);
+        buildObjective();
+        for (let i = 0; i < goatCount; i++) {
+          const angle = -Math.PI * 0.5 + (i - (goatCount - 1) / 2) * 0.38;
+          const isKid = mode === "sandbox" && i === goatCount - 1;
+          goats.push(createGoat(angle, isKid, false));
+        }
+        selectedGoatIdx = 0;
+
+        boulders.push(createBoulder(1.05));
+        boulders.push(createBoulder(-2.35));
+
+        canisters.push(createCanister(-0.22));
+        canisters.push(createCanister(1.85));
+
+        const mossAngles = [-0.88, -0.15, 0.85, 1.65, 2.85, -2.75];
+        for (const a of mossAngles) {
+          mossPatches.push(createMoss(a));
+        }
+
+        updateTopHud();
+      }
+
+      function openTutorialOverlay() {
+        tutorialOpen = true;
+        for (const k in keys) keys[k] = false;
+        for (const t in touchState) touchState[t] = false;
+        document.querySelectorAll(".t-btn.pressed").forEach((el) => el.classList.remove("pressed"));
+
+        const herdBtn = document.getElementById("btnLaunchHerd");
+        const dailyBtn = document.getElementById("btnLaunchDaily");
+        const sandboxBtn = document.getElementById("btnLaunchSandbox");
+        const resuming = (m) => hasStartedOnce && mode === m;
+        herdBtn.textContent = resuming("herding") ? `▶ RESUME HERD (ROUND ${round})` : "🚀 LAUNCH HERD";
+        dailyBtn.textContent = resuming("daily") ? `▶ RESUME DAILY (${round}/${DAILY_ROUNDS})` : "📅 DAILY CHALLENGE";
+        sandboxBtn.textContent = resuming("sandbox") ? "▶ RESUME SANDBOX" : "🧪 SANDBOX";
+
+        renderAchievementList();
+        document.getElementById("tutorialOverlay").classList.add("open");
+        document.getElementById("flightHud").classList.add("hidden");
+        updateTopHud();
+      }
+
+      function clearHeldInputs() {
+        for (const k in keys) keys[k] = false;
+        for (const t in touchState) touchState[t] = false;
+        document.querySelectorAll(".t-btn.pressed").forEach((el) => el.classList.remove("pressed"));
+      }
+
+      function closeTutorialAndLaunch(chosenMode) {
+        ensureAudio();
+        const modeChanged = mode !== chosenMode;
+        mode = chosenMode;
+
+        const btnMode = document.getElementById("btnMode");
+        btnMode.textContent = mode === "herding" ? "Herding" : mode === "daily" ? "Daily" : "Sandbox";
+        document.getElementById("btnSpawnToggle").style.display = mode === "sandbox" ? "inline-flex" : "none";
+        document.getElementById("spawnDrawer").classList.remove("open");
+        document.getElementById("fhTimeItem").classList.toggle("off", !isScoredMode());
+        document.getElementById("fhDvItem").classList.toggle("off", !isScoredMode());
+
+        if (!hasStartedOnce || modeChanged) {
+          round = 1;
+          dailyTotal = 0;
+          dailyRoundScores = [];
+          initWorld();
+        }
+
+        hasStartedOnce = true;
+        tutorialOpen = false;
+        document.getElementById("tutorialOverlay").classList.remove("open");
+        document.getElementById("flightHud").classList.remove("hidden");
+        measureLayout();
+        updateTopHud();
+
+        if (isScoredMode()) {
+          showToast(objectiveIntro());
+        } else {
+          showToast("🧪 Sandbox Mode: Tap + Spawn to add goats & props!");
+        }
+      }
+
+      // =========================================================================
+      // 7. ANALYTIC ORBIT CLASSIFIER (Ap / Pe) + TRAJECTORY PATH BUILDER
+      // =========================================================================
+      // Highest terrain point (incl. crater rim), sampled once. A goat's orbit
+      // is only "safe" if its periapsis clears this plus its half-height.
+      const MAX_TERRAIN_R = (() => {
+        let m = 0;
+        for (let i = 0; i < 3600; i++) {
+          m = Math.max(m, getTerrainRadius((i / 3600) * Math.PI * 2 - Math.PI));
+        }
+        return m;
+      })();
+
+      // Two-body Kepler elements from state vector. Gravity in this game is a
+      // pure point mass, so this is exact (no prediction horizon limit).
+      function computeOrbitElements(g) {
+        const r = Math.hypot(g.x, g.y) || 1;
+        const vSq = g.vx * g.vx + g.vy * g.vy;
+        const energy = 0.5 * vSq - GM / r;
+        const rDotV = g.x * g.vx + g.y * g.vy;
+        const ex = ((vSq - GM / r) * g.x - rDotV * g.vx) / GM;
+        const ey = ((vSq - GM / r) * g.y - rDotV * g.vy) / GM;
+        const e = Math.hypot(ex, ey);
+        if (energy >= 0) {
+          return { bound: false, energy, e, ex, ey, pe: null, ap: null, a: null };
+        }
+        const a = -GM / (2 * energy);
+        return { bound: true, energy, e, ex, ey, a, pe: a * (1 - e), ap: a * (1 + e) };
+      }
+
+      function classifyOrbit(g) {
+        if (g.grounded) {
+          g.orbitState = "GROUNDED";
+          g.orbitEl = null;
+          return;
+        }
+        const el = computeOrbitElements(g);
+        g.orbitEl = el;
+        const clearR = MAX_TERRAIN_R + (g.isKid ? 11 : 17);
+        if (!el.bound) {
+          g.orbitState = "ESCAPE";
+        } else if (el.ap > MAX_FAR_R) {
+          g.orbitState = "LOST";
+        } else if (el.pe <= clearR) {
+          g.orbitState = "SUBORBITAL";
+        } else {
+          g.orbitState = "ORBIT";
+        }
+      }
+
+      function buildTrajectory(g) {
+        if (g.grounded || !g.orbitEl) {
+          g.trajectory = [];
+          return;
+        }
+
+        // Closed, safe orbit: draw the exact ellipse.
+        if (g.orbitState === "ORBIT") {
+          const el = g.orbitEl;
+          const pts = [];
+          const peAng = el.e > 1e-4 ? Math.atan2(el.ey, el.ex) : Math.atan2(g.y, g.x);
+          const p = el.a * (1 - el.e * el.e);
+          const n = 160;
+          for (let i = 0; i <= n; i++) {
+            const nu = (i / n) * Math.PI * 2;
+            const rr = p / (1 + el.e * Math.cos(nu));
+            pts.push({ x: Math.cos(peAng + nu) * rr, y: Math.sin(peAng + nu) * rr });
+          }
+          g.trajectory = pts;
+          g.trajectoryClosed = true;
+          return;
+        }
+        g.trajectoryClosed = false;
+
+        // Open arc: integrate until it hits ground or leaves the recovery range.
+        const pts = [];
+        let px = g.x;
+        let py = g.y;
+        let vx = g.vx;
+        let vy = g.vy;
+
+        const steps = 700;
+        const dt = 0.03;
+
+        let r = Math.hypot(px, py) || 1;
+        let invR3 = -GM / (r * r * r);
+        let ax = px * invR3;
+        let ay = py * invR3;
+
+        for (let i = 0; i < steps; i++) {
+          px += vx * dt + 0.5 * ax * dt * dt;
+          py += vy * dt + 0.5 * ay * dt * dt;
+
+          r = Math.hypot(px, py);
+          if (r < 1) break;
+
+          // Cheap reject before the terrain lookup
+          if (r <= MAX_TERRAIN_R + 17) {
+            const surfR = getTerrainRadius(Math.atan2(py, px)) + (g.isKid ? 10 : 16);
+            if (r <= surfR) {
+              pts.push({ x: px, y: py });
+              break;
+            }
+          }
+
+          if (r > MAX_FAR_R) {
+            pts.push({ x: px, y: py });
+            break;
+          }
+
+          invR3 = -GM / (r * r * r);
+          const nax = px * invR3;
+          const nay = py * invR3;
+
+          vx += 0.5 * (ax + nax) * dt;
+          vy += 0.5 * (ay + nay) * dt;
+          ax = nax;
+          ay = nay;
+
+          if (i % 2 === 0) {
+            pts.push({ x: px, y: py });
+          }
+        }
+
+        g.trajectory = pts;
+      }
+
+      // =========================================================================
+      // 8. GOAT ACTIONS: PRONK, WALL-KICK, HEADBUTT, NIBBLE, BLEAT
+      // =========================================================================
+      function triggerPronk(g) {
+        if (!g || tutorialOpen) return;
+        if (g.faintTimer > 0) return;
+
+        const theta = Math.atan2(g.y, g.x);
+        const rx = Math.cos(theta);
+        const ry = Math.sin(theta);
+        const tx = -ry;
+        const ty = rx;
+
+        // 1. Grounded Pronk (with 2x / 3x rhythm landing chain!)
+        if (g.grounded) {
+          if (g.sinceLandTimer <= 0.16) {
+            g.pronkChain = Math.min(g.pronkChain + 1, 3);
+          } else {
+            g.pronkChain = 1;
+          }
+
+          const chainMult = 1 + (g.pronkChain - 1) * 0.18;
+          const alienMult = g.alienMutated ? 1.28 : 1.0;
+          const kidMult = g.isKid ? 1.12 : 1.0;
+
+          const radialImpulse = 265 * chainMult * alienMult * kidMult;
+          const forwardLunge = 42 * g.facing;
+
+          g.vx += rx * radialImpulse + tx * forwardLunge;
+          g.vy += ry * radialImpulse + ty * forwardLunge;
+          g.grounded = false;
+          g.jumpBufferTimer = 0;
+
+          playSound("pronk", (g.isKid ? 1.35 : 1.0) + (g.pronkChain - 1) * 0.14);
+          for (let i = 0; i < 8; i++) {
+            spawnParticle(
+              g.x - rx * 12,
+              g.y - ry * 12,
+              g.vx * 0.2 + (Math.random() - 0.5) * 110,
+              g.vy * 0.2 + (Math.random() - 0.5) * 110,
+              g.pronkChain > 1 ? "#34d399" : "#cbd5e1",
+              0.35,
+              3.5
+            );
+          }
+          return;
+        }
+
+        // 2. Mid-Air Parkour Wall-Kick
+        const r = Math.hypot(g.x, g.y);
+        const surfR = getTerrainRadius(theta);
+        const nearLander = Math.abs(normalizeAngle(theta - LANDER_ANGLE)) < 0.16 && r < surfR + 95;
+        const nearFlag = Math.abs(normalizeAngle(theta - FLAG_ANGLE)) < 0.12 && r < surfR + 105;
+        const nearCraterWall = Math.abs(Math.abs(normalizeAngle(theta - CRATER_CENTER)) - CRATER_HALF_W) < 0.12 && r < surfR + 46;
+
+        let nearBoulder = false;
+        for (const b of boulders) {
+          if (Math.hypot(b.x - g.x, b.y - g.y) < b.radius + 26) {
+            nearBoulder = true;
+            break;
+          }
+        }
+
+        let kickedAdult = null;
+        if (g.isKid) {
+          for (const other of goats) {
+            if (other !== g && !other.isKid && Math.hypot(other.x - g.x, other.y - g.y) < 34) {
+              kickedAdult = other;
+              break;
+            }
+          }
+        }
+
+        if (nearLander || nearFlag || nearCraterWall || nearBoulder || kickedAdult) {
+          const kickTangent = g.facing * 145;
+          const kickRadial = 175;
+          g.vx += rx * kickRadial + tx * kickTangent;
+          g.vy += ry * kickRadial + ty * kickTangent;
+          g.angVel = g.facing * 5.5;
+          playSound("pronk", 1.45);
+          spawnRadioRing(g.x, g.y, "#34d399", 55);
+          if (kickedAdult && g === goats[selectedGoatIdx]) {
+            showToast("🐐 Goat-Stack Double Launch Boost!");
+          }
+          return;
+        }
+
+        // 3. Pre-land jump buffer (0.16s window)
+        g.jumpBufferTimer = 0.16;
+      }
+
+      function triggerHeadbutt(g) {
+        if (!g || tutorialOpen || g.faintTimer > 0 || g.ramCooldown > 0) return;
+        g.ramCooldown = 0.55;
+
+        const theta = Math.atan2(g.y, g.x);
+        const bodyAngle = theta + Math.PI * 0.5 + g.tilt;
+        const dirX = Math.cos(bodyAngle) * g.facing;
+        const dirY = Math.sin(bodyAngle) * g.facing;
+
+        const byPlayer = g === goats[selectedGoatIdx];
+        if (byPlayer) roundStats.headbutts += 1;
+
+        // Forward lunge only when hooves are on the ground; airborne headbutts
+        // just strike whatever is in reach (plus normal collision recoil).
+        if (g.grounded) {
+          g.vx += dirX * 155;
+          g.vy += dirY * 155;
+        }
+        playSound("ram");
+
+        const reach = 42;
+        const hx = g.x + dirX * 16;
+        const hy = g.y + dirY * 16;
+
+        // Goat-on-goat: momentum-conserving impulse along the ram direction.
+        // Impulse = reduced mass x ((1 + restitution) x closing speed + base nudge),
+        // so a co-orbiting goat gets a gentle, predictable shove and a full-speed
+        // ground charge still hits hard. Momentum is conserved (attacker recoils).
+        for (const other of goats) {
+          if (other === g) continue;
+          if (Math.hypot(other.x - hx, other.y - hy) < reach) {
+            const mA = g.isKid ? KID_MASS : 1.0;
+            const mT = other.isKid ? KID_MASS : 1.0;
+            const mEff = (mA * mT) / (mA + mT);
+
+            const closing = Math.max(0, (g.vx - other.vx) * dirX + (g.vy - other.vy) * dirY);
+            const impulse = mEff * ((1 + RAM_RESTITUTION) * closing + RAM_NUDGE_DV);
+
+            const dvTarget = impulse / mT;
+            const dvAttacker = impulse / mA;
+            other.vx += dirX * dvTarget;
+            other.vy += dirY * dvTarget;
+            g.vx -= dirX * dvAttacker;
+            g.vy -= dirY * dvAttacker;
+
+            if (dvTarget > 60) other.grounded = false;
+            if (dvTarget > RAM_FAINT_DV) {
+              other.faintTimer = 2.4;
+              other.angVel = g.facing * 6;
+            }
+            screenShake = Math.max(screenShake, Math.min(6, 1 + dvTarget / 45));
+
+            if (byPlayer) {
+              // Slingshot achievement: target reaches orbit within 6 s of a nudge
+              other.slingshotFromOrbit = other.orbitState === "ORBIT";
+              other.slingshotTimer = 6;
+              const verb = dvTarget > RAM_FAINT_DV ? "💥 Rammed" : "🤝 Nudged";
+              showToast(`${verb} ${other.palette.name}: Δv ${Math.round(dvTarget)} (you ${Math.round(dvAttacker)})`);
+            }
+          }
+        }
+
+        for (const b of boulders) {
+          if (Math.hypot(b.x - hx, b.y - hy) < reach + b.radius) {
+            b.vx += dirX * 235;
+            b.vy += dirY * 235;
+            g.vx -= dirX * 135;
+            g.vy -= dirY * 135;
+            screenShake = 6;
+          }
+        }
+
+        for (const c of canisters) {
+          if (Math.hypot(c.x - hx, c.y - hy) < reach + c.radius) {
+            c.vx += dirX * 240;
+            c.vy += dirY * 240;
+            c.ruptured = true;
+            c.thrustTimer = 4.5;
+            c.angVel = (Math.random() - 0.5) * 14;
+            if (g === goats[selectedGoatIdx]) showToast("💥 O2 Canister Ruptured!");
+          }
+        }
+
+        if (ufo && !ufo.fleeing && Math.hypot(ufo.x - hx, ufo.y - hy) < reach + 46) {
+          if (byPlayer) unlockAchievement("bodycheck");
+          foilUfo("🛸 Orbital Goat Body-Check! Abduction Foiled!");
+          g.vx -= dirX * 160;
+          g.vy -= dirY * 160;
+        }
+      }
+
+      function triggerNibble(g) {
+        if (!g || tutorialOpen || g.faintTimer > 0 || g.nibbleCooldown > 0) return;
+        g.nibbleCooldown = 0.5;
+        const theta = Math.atan2(g.y, g.x);
+
+        for (const c of canisters) {
+          if (Math.hypot(c.x - g.x, c.y - g.y) < 38) {
+            c.ruptured = true;
+            c.thrustTimer = 4.5;
+            c.angVel = (Math.random() - 0.5) * 12;
+            playSound("nibble");
+            if (g === goats[selectedGoatIdx]) showToast("🧪 Nibbled O2 Valve: Rocket Launch!");
+            return;
+          }
+        }
+
+        for (const m of mossPatches) {
+          if (m.energy > 0.25 && Math.abs(normalizeAngle(theta - m.theta)) < 0.14) {
+            m.energy = Math.max(0, m.energy - 0.5);
+            g.fuel = 1.0;
+            playSound("nibble");
+            for (let i = 0; i < 8; i++) {
+              spawnParticle(g.x, g.y, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90, "#4ade80", 0.45, 3.5);
+            }
+
+            if (!g.isKid && goats.length < 10) {
+              const partner = goats.find(
+                (o) => o !== g && !o.isKid && Math.hypot(o.x - g.x, o.y - g.y) < 95
+              );
+              if (partner) {
+                const kid = createGoat(theta + 0.04, true, false);
+                kid.vy += Math.sin(theta) * 80;
+                kid.vx += Math.cos(theta) * 80;
+                goats.push(kid);
+                spawnRadioRing(g.x, g.y, "#f472b6", 85);
+                showToast("💖 Moon-Moss Grazing Spawned a Baby Kid!");
+                updateTopHud();
+                return;
+              }
+            }
+            if (g === goats[selectedGoatIdx]) showToast("🌿 Nibbled Moon-Moss: RCS Tank Full!");
+            return;
+          }
+        }
+      }
+
+      function triggerBleat(g) {
+        if (!g || tutorialOpen) return;
+        playSound("bleat", g.isKid ? 1.45 : 1.0);
+        spawnRadioRing(g.x, g.y, g.isKid ? "#f472b6" : "#38bdf8", g.isKid ? 155 : 125);
+      }
+
+      function foilUfo(reasonMsg) {
+        if (!ufo) return;
+        playSound("ram");
+        screenShake = 10;
+        for (let i = 0; i < 22; i++) {
+          spawnParticle(
+            ufo.x,
+            ufo.y,
+            (Math.random() - 0.5) * 260,
+            (Math.random() - 0.5) * 260,
+            i % 2 === 0 ? "#4ade80" : "#facc15",
+            0.65,
+            4.5
+          );
+        }
+        ufo.fleeing = true;
+        ufo.vx = (ufo.x >= 0 ? 1 : -1) * 420;
+        ufo.vy = -260;
+        showToast(reasonMsg);
+      }
+
+      // =========================================================================
+      // 9. PHYSICS STEP (2-SUBSTEP VELOCITY VERLET + IDLE BACKGROUND MODE)
+      // =========================================================================
+      function stepPhysics(dt) {
+        simTime += dt;
+        if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 28);
+        if (meteorFlash > 0) meteorFlash = Math.max(0, meteorFlash - dt * 2.5);
+
+        for (const m of mossPatches) {
+          m.energy = Math.min(1.0, m.energy + dt * 0.045);
+        }
+
+        if (!tutorialOpen) {
+          meteorTimer -= dt;
+          if (meteorTimer <= 0) {
+            meteorTimer = 19 + Math.random() * 14;
+            const impactTheta = Math.random() * Math.PI * 2 - Math.PI;
+            const impactR = getTerrainRadius(impactTheta);
+            const ix = Math.cos(impactTheta) * impactR;
+            const iy = Math.sin(impactTheta) * impactR;
+            meteorFlash = 0.7;
+            screenShake = 6;
+            for (let i = 0; i < 16; i++) {
+              spawnParticle(ix, iy, (Math.random() - 0.5) * 240, (Math.random() - 0.5) * 240, "#fbbf24", 0.55, 4);
+            }
+            for (const g of goats) {
+              if (Math.hypot(g.x - ix, g.y - iy) < 135 && g.faintTimer <= 0) {
+                g.faintTimer = 2.6;
+                g.angVel = (Math.random() < 0.5 ? -1 : 1) * 4.5;
+              }
+            }
+          }
+
+          if (!ufo) {
+            ufoTimer -= dt;
+            if (ufoTimer <= 0) {
+              ufoTimer = isScoredMode() ? Math.max(24, 38 - round * 2) : 34;
+              const targetGoat = goats[Math.floor(Math.random() * goats.length)];
+              const spawnTheta = targetGoat ? Math.atan2(targetGoat.y, targetGoat.x) : -Math.PI * 0.5;
+              const hoverR = MOON_R + 215;
+              ufo = {
+                theta: spawnTheta,
+                x: Math.cos(spawnTheta) * (hoverR + 450),
+                y: Math.sin(spawnTheta) * (hoverR + 450),
+                vx: 0,
+                vy: 0,
+                hoverR,
+                timer: 16,
+                fleeing: false,
+                wobble: 0
+              };
+              playSound("ufo");
+              showToast("🛸 Alien Saucer Incoming! Protect the Herd!");
+            }
+          } else {
+            ufo.wobble += dt * 5;
+            if (ufo.fleeing) {
+              ufo.x += ufo.vx * dt;
+              ufo.y += ufo.vy * dt;
+              if (Math.hypot(ufo.x, ufo.y) > 1500) ufo = null;
+            } else {
+              ufo.timer -= dt;
+              ufo.theta += dt * 0.14;
+              const tx = Math.cos(ufo.theta) * ufo.hoverR;
+              const ty = Math.sin(ufo.theta) * ufo.hoverR;
+              ufo.x += (tx - ufo.x) * Math.min(1, dt * 3.5);
+              ufo.y += (ty - ufo.y) * Math.min(1, dt * 3.5);
+
+              if (ufo.timer <= 0) {
+                ufo.fleeing = true;
+                ufo.vx = Math.cos(ufo.theta) * 480;
+                ufo.vy = Math.sin(ufo.theta) * 480;
+              }
+            }
+          }
+
+          for (let i = returningAbductees.length - 1; i >= 0; i--) {
+            const ret = returningAbductees[i];
+            ret.timer -= dt;
+            if (ret.timer <= 0) {
+              const dropAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.4;
+              const mutated = createGoat(dropAngle, false, true);
+              const cloneKid = createGoat(dropAngle + 0.08, true, true);
+              goats.push(mutated, cloneKid);
+              spawnRadioRing(mutated.x, mutated.y, "#4ade80", 120);
+              showToast("👽 UFO Returned an Alien-Boosted Goat + Cloned Kid!");
+              returningAbductees.splice(i, 1);
+              updateTopHud();
+            }
+          }
+        }
+
+        // Physics runs on a fixed 1/120 s step (see main loop), so one substep is enough.
+        const subSteps = 1;
+        const subDt = dt / subSteps;
+
+        for (let gi = goats.length - 1; gi >= 0; gi--) {
+          const g = goats[gi];
+          const isPlayer = gi === selectedGoatIdx && !tutorialOpen;
+
+          g.age += dt;
+          if (g.isKid && g.age >= 60) {
+            g.isKid = false;
+            if (isPlayer) showToast("🐐 Your Baby Kid Grew Into an Adult!");
+          }
+          if (g.faintTimer > 0) g.faintTimer = Math.max(0, g.faintTimer - dt);
+          if (g.ramCooldown > 0) g.ramCooldown = Math.max(0, g.ramCooldown - dt);
+          if (g.nibbleCooldown > 0) g.nibbleCooldown = Math.max(0, g.nibbleCooldown - dt);
+          if (g.jumpBufferTimer > 0) g.jumpBufferTimer = Math.max(0, g.jumpBufferTimer - dt);
+          g.sinceLandTimer += dt;
+
+          let moveInput = 0;
+          let wantBoost = false;
+
+          if (isPlayer) {
+            if (keys["ArrowLeft"] || keys["KeyA"] || touchState.left) moveInput -= 1;
+            if (keys["ArrowRight"] || keys["KeyD"] || touchState.right) moveInput += 1;
+            wantBoost = Boolean(keys["KeyX"] || keys["KeyW"] || keys["ShiftLeft"] || keys["ShiftRight"] || touchState.boost);
+          } else {
+            g.aiDecisionTimer -= dt;
+            if (g.aiDecisionTimer <= 0) {
+              g.aiDecisionTimer = 1.1 + Math.random() * 2.2;
+              if (g.grounded) {
+                g.aiMoveDir = Math.random() < 0.35 ? 0 : Math.random() < 0.5 ? -1 : 1;
+                if (!tutorialOpen && Math.random() < 0.28) {
+                  triggerPronk(g);
+                } else if (tutorialOpen && Math.random() < 0.22) {
+                  const th = Math.atan2(g.y, g.x);
+                  g.vx += Math.cos(th) * 165;
+                  g.vy += Math.sin(th) * 165;
+                  g.grounded = false;
+                }
+              } else {
+                g.aiMoveDir = 0;
+              }
+            }
+            if (g.isKid && !tutorialOpen) {
+              g.zoomieTimer -= dt;
+              if (g.zoomieTimer <= 0) {
+                g.zoomieTimer = 4.5 + Math.random() * 4;
+                if (g.grounded) {
+                  g.aiMoveDir = Math.random() < 0.5 ? -1 : 1;
+                  triggerPronk(g);
+                }
+              }
+              // Never let a kid fire its jetpack once it's in a stable orbit
+              if (!g.grounded && g.orbitState !== "ORBIT" && g.fuel > 0.35 && g.zoomieTimer > 3.6) {
+                wantBoost = true;
+              }
+            }
+            moveInput = tutorialOpen ? g.aiMoveDir * 0.55 : g.aiMoveDir;
+
+            if (g.faintTimer > 0 && g.boosting && g.fuel > 0.02 && g.orbitState !== "ORBIT") {
+              wantBoost = true;
+            }
+          }
+
+          if (isPlayer && g.faintTimer > 0 && g.boosting && g.fuel > 0.02) {
+            wantBoost = true;
+          }
+
+          const theta = Math.atan2(g.y, g.x);
+          const norm = getSurfaceNormal(theta);
+
+          if (g.grounded && g.faintTimer <= 0) {
+            g.fuel = Math.min(1.0, g.fuel + dt * 0.42);
+            g.tilt *= Math.pow(0.001, dt);
+            g.angVel = 0;
+
+            const currentTanVel = g.vx * norm.tx + g.vy * norm.ty;
+            const maxRunSpeed = g.isKid ? 360 : 335;
+            const runAccel = g.isKid ? 1150 : 1020;
+
+            if (moveInput !== 0) {
+              g.facing = moveInput > 0 ? 1 : -1;
+              const turningAround = Math.sign(currentTanVel) !== 0 && Math.sign(currentTanVel) !== Math.sign(moveInput);
+              const accel = turningAround ? runAccel * 1.85 : runAccel;
+              const nextTanVel = Math.max(
+                -maxRunSpeed,
+                Math.min(maxRunSpeed, currentTanVel + moveInput * accel * dt)
+              );
+              g.vx = norm.tx * nextTanVel;
+              g.vy = norm.ty * nextTanVel;
+              g.legPhase += Math.abs(nextTanVel) * dt * 0.085;
+
+              if (Math.abs(nextTanVel) > 220 && Math.random() < 0.45) {
+                spawnParticle(
+                  g.x - norm.nx * 12,
+                  g.y - norm.ny * 12,
+                  -norm.tx * nextTanVel * 0.25 + norm.nx * (25 + Math.random() * 35),
+                  -norm.ty * nextTanVel * 0.25 + norm.ny * (25 + Math.random() * 35),
+                  Math.abs(nextTanVel) >= 332 ? "#38bdf8" : "#94a3b8",
+                  0.28,
+                  2.8
+                );
+              }
+            } else {
+              const dampedTan = currentTanVel * Math.pow(0.015, dt);
+              g.vx = norm.tx * dampedTan;
+              g.vy = norm.ty * dampedTan;
+            }
+          } else if (!g.grounded) {
+            if (g.faintTimer > 0) {
+              g.tilt += g.angVel * dt;
+            } else if (moveInput !== 0) {
+              g.facing = moveInput > 0 ? 1 : -1;
+              g.angVel = moveInput * 4.4;
+              g.tilt += g.angVel * dt;
+            } else {
+              g.angVel *= Math.pow(0.02, dt);
+              g.tilt = normalizeAngle(g.tilt) * Math.pow(0.18, dt);
+            }
+          }
+
+          g.boosting = false;
+          if (wantBoost && g.fuel > 0.01) {
+            g.boosting = true;
+
+            // Progressive throttle: a tap is a gentle nudge, holding ramps to full.
+            // Fine mode (Shift / FINE toggle) caps the player's thrust for precise trims.
+            g.boostHold += dt;
+            const ramp = Math.min(1, THROTTLE_MIN + (1 - THROTTLE_MIN) * (g.boostHold / THROTTLE_RAMP_TIME));
+            const fineMode = isPlayer && isFineThrust();
+            g.throttle = ramp * (fineMode ? FINE_THROTTLE_CAP : 1);
+
+            const burnRate = (1.0 / 1.8) * g.throttle;
+            g.fuel = Math.max(0, g.fuel - burnRate * dt);
+
+            const bodyAngle = theta + Math.PI * 0.5 + g.tilt;
+            const dirX = Math.cos(bodyAngle) * g.facing;
+            const dirY = Math.sin(bodyAngle) * g.facing;
+
+            const thrustAccel = (g.isKid ? SURFACE_G * 1.18 : SURFACE_G * 0.68) * g.throttle;
+            if (isPlayer && isScoredMode()) roundStats.dv += thrustAccel * dt;
+            g.vx += dirX * thrustAccel * dt;
+            g.vy += dirY * thrustAccel * dt;
+
+            if (isPlayer && simTime - lastThrusterSoundTime > 0.075) {
+              lastThrusterSoundTime = simTime;
+              playSound("thruster");
+            }
+
+            const plumeCount = g.throttle > 0.5 ? 2 : Math.random() < g.throttle * 2 ? 1 : 0;
+            for (let p = 0; p < plumeCount; p++) {
+              spawnParticle(
+                g.x - dirX * 12,
+                g.y - dirY * 12,
+                g.vx * 0.25 - dirX * (160 + Math.random() * 80) + (Math.random() - 0.5) * 45,
+                g.vy * 0.25 - dirY * (160 + Math.random() * 80) + (Math.random() - 0.5) * 45,
+                g.isKid ? "#f472b6" : "#38bdf8",
+                0.28,
+                3.2
+              );
+            }
+          } else {
+            g.boostHold = 0;
+            g.throttle = 0;
+          }
+
+          let removed = false;
+          for (let s = 0; s < subSteps; s++) {
+            const r = Math.hypot(g.x, g.y) || 1;
+            const invR3 = -GM / (r * r * r);
+            const ax = g.x * invR3;
+            const ay = g.y * invR3;
+
+            g.x += g.vx * subDt + 0.5 * ax * subDt * subDt;
+            g.y += g.vy * subDt + 0.5 * ay * subDt * subDt;
+
+            const nr = Math.hypot(g.x, g.y) || 1;
+            const nInvR3 = -GM / (nr * nr * nr);
+            const nax = g.x * nInvR3;
+            const nay = g.y * nInvR3;
+
+            g.vx += 0.5 * (ax + nax) * subDt;
+            g.vy += 0.5 * (ay + nay) * subDt;
+
+            if (!tutorialOpen && ufo && !ufo.fleeing) {
+              const ufoAngle = Math.atan2(ufo.y, ufo.x);
+              const gAngle = Math.atan2(g.y, g.x);
+              const angDiff = Math.abs(normalizeAngle(gAngle - ufoAngle));
+              if (angDiff < 0.21 && nr <= ufo.hoverR + 20) {
+                const toUfoX = ufo.x - g.x;
+                const toUfoY = ufo.y - g.y;
+                const distUfo = Math.hypot(toUfoX, toUfoY) || 1;
+                g.grounded = false;
+                g.faintTimer = Math.max(g.faintTimer, 0.4);
+                g.vx += (toUfoX / distUfo) * (SURFACE_G * 1.48) * subDt;
+                g.vy += (toUfoY / distUfo) * (SURFACE_G * 1.48) * subDt;
+
+                if (distUfo < 34) {
+                  removeGoatAt(gi);
+                  removed = true;
+                  roundStats.abducted += 1;
+                  returningAbductees.push({ timer: 15.0 });
+                  ufo.fleeing = true;
+                  ufo.vx = Math.cos(ufo.theta) * 480;
+                  ufo.vy = Math.sin(ufo.theta) * 480;
+                  showToast("🛸 A Goat Was Abducted! Returning in 15s...");
+                  updateTopHud();
+                  break;
+                }
+              }
+            }
+
+            const curTheta = Math.atan2(g.y, g.x);
+            const halfH = g.isKid ? 11 : 17;
+            const groundR = getTerrainRadius(curTheta) + halfH;
+
+            if (nr <= groundR) {
+              const sNorm = getSurfaceNormal(curTheta);
+              const vDotN = g.vx * sNorm.nx + g.vy * sNorm.ny;
+              const vDotT = g.vx * sNorm.tx + g.vy * sNorm.ty;
+
+              g.x = Math.cos(curTheta) * groundR;
+              g.y = Math.sin(curTheta) * groundR;
+
+              if (!g.grounded && vDotN < -390) {
+                g.faintTimer = 2.4;
+                g.angVel = (Math.random() < 0.5 ? -1 : 1) * 5;
+                if (!tutorialOpen) playSound("ram");
+              }
+
+              if (!g.grounded) {
+                g.grounded = true;
+                g.sinceLandTimer = 0;
+                g.vx = sNorm.tx * vDotT;
+                g.vy = sNorm.ty * vDotT;
+
+                if (g.jumpBufferTimer > 0 && !tutorialOpen) {
+                  triggerPronk(g);
+                }
+              } else {
+                const gravTan = -Math.cos(curTheta) * (GM / (nr * nr)) * sNorm.tx - Math.sin(curTheta) * (GM / (nr * nr)) * sNorm.ty;
+                const boostedTan = vDotT + gravTan * subDt * 0.75;
+                g.vx = sNorm.tx * boostedTan;
+                g.vy = sNorm.ty * boostedTan;
+              }
+            } else if (nr > groundR + 4) {
+              g.grounded = false;
+            }
+          }
+
+          if (removed) continue;
+
+          if (Math.hypot(g.x, g.y) > MAX_FAR_R) {
+            const lostName = g.palette.name;
+            removeGoatAt(gi);
+            roundStats.lost += 1;
+            const replacement = createGoat(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.6, false, false);
+            goats.push(replacement);
+            showToast(`🌌 ${lostName} Drifted Into Deep Space! Replacement Dropped.`);
+            continue;
+          }
+
+          const prevState = g.orbitState;
+          classifyOrbit(g);
+
+          if (!tutorialOpen) {
+            // Achievements tied to reaching orbit
+            if (prevState !== "ORBIT" && g.orbitState === "ORBIT") {
+              unlockAchievement("liftoff");
+              if (g.slingshotTimer > 0 && !g.slingshotFromOrbit) unlockAchievement("slingshot");
+            }
+            if (g.slingshotTimer > 0) g.slingshotTimer = Math.max(0, g.slingshotTimer - dt);
+
+            // Ring gates: any goat flying through a ring collects it
+            if (objective.type === "rings" && !g.grounded) {
+              for (const ring of objective.rings) {
+                if (!ring.collected && Math.hypot(g.x - ring.x, g.y - ring.y) < ring.radius) {
+                  ring.collected = true;
+                  const done = objective.rings.length - ringsRemaining();
+                  playSound("ring", 1 + done * 0.08);
+                  for (let k = 0; k < 14; k++) {
+                    const a = (k / 14) * Math.PI * 2;
+                    spawnParticle(ring.x, ring.y, Math.cos(a) * 140, Math.sin(a) * 140, "#fbbf24", 0.5, 3.5);
+                  }
+                  showToast(ringsRemaining() === 0 ? "💫 All rings cleared! Now orbit the whole herd" : `💫 Ring ${done}/${objective.rings.length}`);
+                }
+              }
+            }
+          }
+        }
+
+        for (const b of boulders) {
+          const r = Math.hypot(b.x, b.y) || 1;
+          const invR3 = -GM / (r * r * r);
+          b.vx += b.x * invR3 * dt;
+          b.vy += b.y * invR3 * dt;
+
+          if (!tutorialOpen && ufo && !ufo.fleeing) {
+            const ufoAngle = Math.atan2(ufo.y, ufo.x);
+            const bAngle = Math.atan2(b.y, b.x);
+            if (Math.abs(normalizeAngle(bAngle - ufoAngle)) < 0.21 && r <= ufo.hoverR + 20) {
+              const dx = ufo.x - b.x;
+              const dy = ufo.y - b.y;
+              const d = Math.hypot(dx, dy) || 1;
+              b.vx += (dx / d) * SURFACE_G * 1.45 * dt;
+              b.vy += (dy / d) * SURFACE_G * 1.45 * dt;
+              if (d < 44) {
+                foilUfo("🪨 Boulder Sabotaged the UFO Tractor Beam!");
+              }
+            }
+          }
+
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+          const nr = Math.hypot(b.x, b.y) || 1;
+          const bTheta = Math.atan2(b.y, b.x);
+          const groundR = getTerrainRadius(bTheta) + b.radius;
+          if (nr <= groundR) {
+            const sNorm = getSurfaceNormal(bTheta);
+            const vDotT = (b.vx * sNorm.tx + b.vy * sNorm.ty) * Math.pow(0.55, dt);
+            b.x = Math.cos(bTheta) * groundR;
+            b.y = Math.sin(bTheta) * groundR;
+            b.vx = sNorm.tx * vDotT;
+            b.vy = sNorm.ty * vDotT;
+            b.angle += (vDotT / b.radius) * dt;
+          }
+        }
+
+        for (const c of canisters) {
+          const r = Math.hypot(c.x, c.y) || 1;
+          const invR3 = -GM / (r * r * r);
+          c.vx += c.x * invR3 * dt;
+          c.vy += c.y * invR3 * dt;
+
+          if (!tutorialOpen && ufo && !ufo.fleeing) {
+            const ufoAngle = Math.atan2(ufo.y, ufo.x);
+            const cAngle = Math.atan2(c.y, c.x);
+            if (Math.abs(normalizeAngle(cAngle - ufoAngle)) < 0.21 && r <= ufo.hoverR + 20) {
+              const dx = ufo.x - c.x;
+              const dy = ufo.y - c.y;
+              const d = Math.hypot(dx, dy) || 1;
+              c.vx += (dx / d) * SURFACE_G * 1.45 * dt;
+              c.vy += (dy / d) * SURFACE_G * 1.45 * dt;
+            }
+          }
+
+          if (c.ruptured && c.thrustTimer > 0) {
+            c.thrustTimer -= dt;
+            c.angle += c.angVel * dt;
+            const tx = Math.cos(c.angle);
+            const ty = Math.sin(c.angle);
+            c.vx += tx * 880 * dt;
+            c.vy += ty * 880 * dt;
+            spawnParticle(c.x - tx * 10, c.y - ty * 10, -tx * 180, -ty * 180, "#facc15", 0.25, 3);
+            if (c.thrustTimer <= 0) c.ruptured = false;
+          }
+
+          if (!tutorialOpen && ufo && !ufo.fleeing && Math.hypot(ufo.x - c.x, ufo.y - c.y) < 44) {
+            foilUfo("🚀 O2 Canister Rocket Hit the UFO!");
+            c.ruptured = false;
+          }
+
+          c.x += c.vx * dt;
+          c.y += c.vy * dt;
+          const nr = Math.hypot(c.x, c.y) || 1;
+          const cTheta = Math.atan2(c.y, c.x);
+          const groundR = getTerrainRadius(cTheta) + c.radius;
+          if (nr <= groundR) {
+            const sNorm = getSurfaceNormal(cTheta);
+            const vDotT = (c.vx * sNorm.tx + c.vy * sNorm.ty) * Math.pow(0.2, dt);
+            c.x = Math.cos(cTheta) * groundR;
+            c.y = Math.sin(cTheta) * groundR;
+            c.vx = sNorm.tx * vDotT;
+            c.vy = sNorm.ty * vDotT;
+          }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = radioRings.length - 1; i >= 0; i--) {
+          const ring = radioRings[i];
+          ring.r += 165 * dt;
+          ring.alpha = Math.max(0, 1 - ring.r / ring.maxR);
+          if (ring.r >= ring.maxR) radioRings.splice(i, 1);
+        }
+
+        if (!tutorialOpen && isScoredMode()) roundStats.time += dt;
+
+        if (!tutorialOpen && isScoredMode() && objectiveMet()) {
+          orbitLockTimer += dt;
+          if (orbitLockTimer >= ORBIT_LOCK_REQUIRED) {
+            playSound("lock");
+            orbitLockTimer = 0;
+            finishRound();
+            return;
+          }
+        } else if (!tutorialOpen) {
+          orbitLockTimer = 0;
+        }
+      }
+
+      // =========================================================================
+      // 10. CAMERA AUTO-FIT FRAMING & RENDERING
+      // =========================================================================
+      // Measured on resize only (avoids forcing a layout every frame)
+      const layoutCache = { topBarH: 42, bottomReserve: 14 };
+      function measureLayout() {
+        const h = window.innerHeight;
+        layoutCache.topBarH = document.getElementById("topHudBar").offsetHeight || 42;
+        let reserve = 14;
+        const touchEl = document.getElementById("touchControls");
+        if (touchEl && window.getComputedStyle(touchEl).display !== "none") {
+          reserve = Math.max(reserve, h - touchEl.getBoundingClientRect().top);
+        }
+        const fh = document.getElementById("flightHud");
+        if (fh && !fh.classList.contains("hidden")) {
+          reserve = Math.max(reserve, h - fh.getBoundingClientRect().top);
+        }
+        layoutCache.bottomReserve = reserve;
+      }
+
+      function updateCamera(dt) {
+        const w = canvas.clientWidth || window.innerWidth;
+        const h = canvas.clientHeight || window.innerHeight;
+
+        const clearTop = layoutCache.topBarH + 8;
+        const clearBottom = h - layoutCache.bottomReserve - 8;
+        const clearHeight = Math.max(220, clearBottom - clearTop);
+        const clearCenterY = clearTop + clearHeight * 0.5;
+
+        let maxExtent = MOON_R + 130;
+        for (const g of goats) {
+          const d = Math.hypot(g.x, g.y) + 60;
+          if (d > maxExtent) maxExtent = d;
+        }
+        if (ufo && !ufo.fleeing) {
+          const du = Math.hypot(ufo.x, ufo.y) + 70;
+          if (du > maxExtent) maxExtent = du;
+        }
+        // Keep challenge targets in frame
+        for (const ring of objective.rings) {
+          if (!ring.collected) maxExtent = Math.max(maxExtent, Math.hypot(ring.x, ring.y) + ring.radius + 30);
+        }
+        if (objective.type === "band") maxExtent = Math.max(maxExtent, MOON_R + objective.bandHi + 40);
+
+        const minHalfDim = Math.min(w * 0.46, clearHeight * 0.46);
+        const autoFitZoom = Math.max(0.24, Math.min(0.95, minHalfDim / maxExtent));
+
+        camera.targetZoom = camera.manualZoom !== null ? camera.manualZoom : autoFitZoom;
+        camera.zoom += (camera.targetZoom - camera.zoom) * Math.min(1, dt * 6);
+        camera.x = w * 0.5;
+        camera.y = clearCenterY;
+      }
+
+      function drawStars(w, h) {
+        ctx.save();
+        for (const s of stars) {
+          const sx = ((s.x - camera.x * s.parallax) % w + w) % w;
+          const sy = ((s.y - camera.y * s.parallax) % h + h) % h;
+          const alpha = 0.35 + 0.55 * (0.5 + 0.5 * Math.sin(simTime * 2.2 + s.twinkle));
+          ctx.fillStyle = `rgba(226, 232, 240, ${alpha.toFixed(2)})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawMoon() {
+        ctx.save();
+        // Subtle lunar exosphere glow
+        const glow = ctx.createRadialGradient(0, 0, MOON_R * 0.85, 0, 0, MOON_R * 1.24);
+        glow.addColorStop(0, "rgba(148, 163, 184, 0.14)");
+        glow.addColorStop(1, "rgba(148, 163, 184, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, MOON_R * 1.24, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sculpted Circular Moon Body
+        const steps = 180;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const theta = (i / steps) * Math.PI * 2;
+          const r = getTerrainRadius(theta);
+          const x = Math.cos(theta) * r;
+          const y = Math.sin(theta) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+
+        const moonGrad = ctx.createRadialGradient(-70, -80, 30, 0, 0, MOON_R + 20);
+        moonGrad.addColorStop(0, "#cbd5e1");
+        moonGrad.addColorStop(0.65, "#94a3b8");
+        moonGrad.addColorStop(1, "#475569");
+        ctx.fillStyle = moonGrad;
+        ctx.fill();
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.stroke();
+
+        // Interior Decorative Craters
+        const decoCraters = [
+          { x: -85, y: -45, r: 34 },
+          { x: 95, y: 40, r: 42 },
+          { x: -30, y: 115, r: 28 },
+          { x: 45, y: -110, r: 22 },
+          { x: -120, y: 65, r: 20 }
+        ];
+        for (const c of decoCraters) {
+          ctx.fillStyle = "rgba(51, 65, 85, 0.34)";
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(226, 232, 240, 0.2)";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Glowing Moon-Moss Patches
+        for (const m of mossPatches) {
+          if (m.energy <= 0.05) continue;
+          const r = getTerrainRadius(m.theta);
+          ctx.save();
+          ctx.translate(Math.cos(m.theta) * r, Math.sin(m.theta) * r);
+          ctx.rotate(m.theta + Math.PI * 0.5);
+          ctx.fillStyle = `rgba(74, 222, 128, ${(0.35 + m.energy * 0.55).toFixed(2)})`;
+          ctx.beginPath();
+          ctx.ellipse(0, -2, 18 * m.energy, 6 * m.energy, 0, Math.PI, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Giant Apollo Lunar Lander (Wall-Kickable Landmark)
+        const landerR = getTerrainRadius(LANDER_ANGLE);
+        ctx.save();
+        ctx.translate(Math.cos(LANDER_ANGLE) * landerR, Math.sin(LANDER_ANGLE) * landerR);
+        ctx.rotate(LANDER_ANGLE + Math.PI * 0.5);
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-22, 0);
+        ctx.lineTo(-12, -26);
+        ctx.moveTo(22, 0);
+        ctx.lineTo(12, -26);
+        ctx.stroke();
+        ctx.fillStyle = "#eab308";
+        ctx.fillRect(-16, -42, 32, 18);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.beginPath();
+        ctx.arc(0, -52, 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(-8, -56, 16, 7);
+        ctx.restore();
+
+        // Giant Planted Flag (Wall-Kickable Landmark)
+        const flagR = getTerrainRadius(FLAG_ANGLE);
+        ctx.save();
+        ctx.translate(Math.cos(FLAG_ANGLE) * flagR, Math.sin(FLAG_ANGLE) * flagR);
+        ctx.rotate(FLAG_ANGLE + Math.PI * 0.5);
+        ctx.strokeStyle = "#f8fafc";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -78);
+        ctx.stroke();
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(0, -76, 34, 20);
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath();
+        ctx.arc(12, -66, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Launch Crater Label
+        const topR = getTerrainRadius(CRATER_CENTER);
+        ctx.save();
+        ctx.translate(0, -topR + 22);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.55)";
+        ctx.font = "700 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("LAUNCH CRATER", 0, 0);
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      // Challenge targets: altitude band annulus and ring gates
+      function drawObjective() {
+        const px = 1 / Math.max(0.3, camera.zoom); // one screen pixel in world units
+        if (objective.type === "band") {
+          const rLo = MOON_R + objective.bandLo;
+          const rHi = MOON_R + objective.bandHi;
+          ctx.save();
+          ctx.strokeStyle = "rgba(52, 211, 153, 0.09)";
+          ctx.lineWidth = rHi - rLo;
+          ctx.beginPath();
+          ctx.arc(0, 0, (rLo + rHi) / 2, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(52, 211, 153, 0.45)";
+          ctx.lineWidth = 1.5 * px;
+          ctx.setLineDash([10 * px, 8 * px]);
+          for (const r of [rLo, rHi]) {
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          ctx.fillStyle = "rgba(110, 231, 183, 0.85)";
+          ctx.font = `700 ${11 * px}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(`BAND ${objective.bandLo}–${objective.bandHi}`, 0, -rHi - 8 * px);
+          ctx.restore();
+        }
+
+        for (const ring of objective.rings) {
+          ctx.save();
+          ctx.translate(ring.x, ring.y);
+          if (ring.collected) {
+            ctx.strokeStyle = "rgba(52, 211, 153, 0.25)";
+            ctx.lineWidth = 2 * px;
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius * 0.5, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            const pulse = 0.6 + 0.4 * Math.sin(simTime * 4 + ring.pulse);
+            ctx.shadowColor = "rgba(251, 191, 36, 0.8)";
+            ctx.shadowBlur = 12 * pulse;
+            ctx.strokeStyle = `rgba(251, 191, 36, ${(0.55 + 0.4 * pulse).toFixed(2)})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.rotate(simTime * 1.5);
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "rgba(254, 243, 199, 0.7)";
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 10]);
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius - 6, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawTrajectories() {
+        for (let i = 0; i < goats.length; i++) {
+          const g = goats[i];
+          if (g.grounded || g.trajectory.length < 2) continue;
+
+          const isSelected = i === selectedGoatIdx;
+          let color = "rgba(251, 191, 36, 0.55)"; // Amber = Sub-orbital
+          if (g.orbitState === "ORBIT" && !goatQualifies(g)) {
+            // Safe orbit, but outside the altitude band
+            color = isSelected ? "rgba(56, 189, 248, 0.92)" : "rgba(56, 189, 248, 0.45)";
+          } else if (g.orbitState === "ORBIT") {
+            color = isSelected ? "rgba(52, 211, 153, 0.92)" : "rgba(52, 211, 153, 0.45)";
+          } else if (g.orbitState === "ESCAPE" || g.orbitState === "LOST") {
+            color = isSelected ? "rgba(251, 113, 133, 0.9)" : "rgba(251, 113, 133, 0.45)";
+          } else if (isSelected) {
+            color = "rgba(251, 191, 36, 0.88)";
+          }
+
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = (isSelected ? 2.5 : 1.5) / Math.max(0.5, camera.zoom);
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          if (g.trajectoryClosed) {
+            ctx.moveTo(g.trajectory[0].x, g.trajectory[0].y);
+          } else {
+            ctx.moveTo(g.x, g.y);
+          }
+          for (const pt of g.trajectory) {
+            ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        drawApsisMarkers();
+      }
+
+      // Ap / Pe markers for the selected goat's orbit
+      function drawApsisMarkers() {
+        const g = goats[selectedGoatIdx];
+        if (!g || g.grounded || !g.orbitEl || !g.orbitEl.bound) return;
+        const el = g.orbitEl;
+        if (el.e < 0.01) return; // near-circular: apsides are meaningless
+
+        const peAng = Math.atan2(el.ey, el.ex);
+        const clearR = MAX_TERRAIN_R + (g.isKid ? 11 : 17);
+        const s = 1 / Math.max(0.35, camera.zoom); // keep markers a constant screen size
+
+        const markers = [];
+        if (el.ap <= MAX_FAR_R + 200) {
+          markers.push({ label: "Ap", r: el.ap, ang: peAng + Math.PI, color: "#38bdf8" });
+        }
+        if (el.pe > clearR) {
+          markers.push({ label: "Pe", r: el.pe, ang: peAng, color: "#34d399" });
+        }
+
+        ctx.save();
+        ctx.font = `700 ${11 * s}px sans-serif`;
+        ctx.textBaseline = "middle";
+        for (const m of markers) {
+          const x = Math.cos(m.ang) * m.r;
+          const y = Math.sin(m.ang) * m.r;
+          ctx.fillStyle = m.color;
+          ctx.beginPath();
+          ctx.moveTo(x, y - 6 * s);
+          ctx.lineTo(x + 5 * s, y);
+          ctx.lineTo(x, y + 6 * s);
+          ctx.lineTo(x - 5 * s, y);
+          ctx.closePath();
+          ctx.fill();
+
+          const text = `${m.label} ${Math.round(m.r - MOON_R)}`;
+          ctx.textAlign = "left";
+          const tw = ctx.measureText(text).width;
+          ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
+          ctx.fillRect(x + 8 * s, y - 8 * s, tw + 8 * s, 16 * s);
+          ctx.fillStyle = m.color;
+          ctx.fillText(text, x + 12 * s, y);
+        }
+        ctx.restore();
+      }
+
+      function drawProps() {
+        // Rolling Boulders
+        for (const b of boulders) {
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(b.angle);
+          ctx.fillStyle = "#64748b";
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#334155";
+          ctx.beginPath();
+          ctx.arc(-5, -4, 4, 0, Math.PI * 2);
+          ctx.arc(6, 5, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Pressurized O2 Canisters
+        for (const c of canisters) {
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.rotate(c.angle);
+          ctx.fillStyle = c.ruptured ? "#f97316" : "#38bdf8";
+          ctx.strokeStyle = "#f8fafc";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-11, -6, 22, 12, 5);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawGoats() {
+        for (let i = 0; i < goats.length; i++) {
+          const g = goats[i];
+          const isSelected = i === selectedGoatIdx;
+          const theta = Math.atan2(g.y, g.x);
+          const scale = g.isKid ? 0.68 : 1.0;
+
+          ctx.save();
+          ctx.translate(g.x, g.y);
+
+          // Hoof Launch Speed Glow when sprinting near orbital speed
+          const speed = Math.hypot(g.vx, g.vy);
+          if (g.grounded && speed > 235) {
+            ctx.save();
+            ctx.rotate(theta + Math.PI * 0.5);
+            const ratio = Math.min(1, (speed - 235) / 100);
+            ctx.strokeStyle = speed >= 332 ? "#34d399" : "#38bdf8";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 14 * scale, 22 * scale, Math.PI * (0.5 - ratio * 0.45), Math.PI * (0.5 + ratio * 0.45));
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Active Goat Selection Ring & Curved RCS Fuel Gauge
+          if (isSelected) {
+            ctx.strokeStyle = g.orbitState === "ORBIT" ? "rgba(52, 211, 153, 0.7)" : "rgba(56, 189, 248, 0.65)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 29 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Curved RCS Fuel Arc
+            ctx.strokeStyle = g.fuel > 0.25 ? "#38bdf8" : "#fb7185";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, 33 * scale, -Math.PI * 0.75, -Math.PI * 0.75 + Math.PI * 0.5 * g.fuel);
+            ctx.stroke();
+          }
+
+          ctx.rotate(theta + Math.PI * 0.5 + g.tilt);
+          if (g.faintTimer > 0) {
+            ctx.rotate(Math.PI * 0.5 * g.facing);
+          }
+          ctx.scale(g.facing * scale, scale);
+
+          // RCS Jetpack Backpack
+          ctx.fillStyle = "#334155";
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(-13, -12, 11, 10, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          // Thruster Plume
+          if (g.boosting) {
+            const plumeLen = (14 + Math.random() * 10) * (0.3 + 0.7 * g.throttle);
+            ctx.fillStyle = g.isKid ? "#f472b6" : "#38bdf8";
+            ctx.beginPath();
+            ctx.moveTo(-13, -9);
+            ctx.lineTo(-13 - plumeLen, -7);
+            ctx.lineTo(-13, -4);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Four Goat Legs (stiff when pronking/fainting, trotting when running)
+          ctx.strokeStyle = g.alienMutated ? "#4ade80" : g.palette.coat;
+          ctx.lineWidth = 3.2;
+          ctx.lineCap = "round";
+          const stride = g.grounded && speed > 15 && g.faintTimer <= 0 ? Math.sin(g.legPhase) * 6 : 0;
+          const stiffAngle = !g.grounded || g.faintTimer > 0 ? 0.28 : 0;
+
+          const legX = [-10, -5, 6, 10];
+          for (let l = 0; l < 4; l++) {
+            const dir = l < 2 ? -1 : 1;
+            const swing = (l % 2 === 0 ? stride : -stride) + dir * stiffAngle * 14;
+            ctx.beginPath();
+            ctx.moveTo(legX[l], 4);
+            ctx.lineTo(legX[l] + swing, 16);
+            ctx.stroke();
+          }
+
+          // Goat Torso
+          ctx.fillStyle = g.alienMutated ? "#86efac" : g.palette.coat;
+          ctx.beginPath();
+          ctx.roundRect(-15, -7, 28, 14, 7);
+          ctx.fill();
+
+          // Tail
+          ctx.beginPath();
+          ctx.moveTo(-14, -5);
+          ctx.lineTo(-19, -11);
+          ctx.stroke();
+
+          // Goat Head & Curved Horns
+          ctx.fillStyle = g.alienMutated ? "#86efac" : g.palette.coat;
+          ctx.beginPath();
+          ctx.ellipse(14, -9, 8, 6, -0.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = g.palette.horns;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(10, -14, 6, Math.PI * 0.9, Math.PI * 1.85);
+          ctx.stroke();
+
+          // Oversized Glass Space Helmet
+          ctx.fillStyle = "rgba(56, 189, 248, 0.24)";
+          ctx.strokeStyle = g.palette.visor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(14, -10, 11.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.restore();
+        }
+      }
+
+      function drawUfo() {
+        if (!ufo) return;
+        ctx.save();
+        const theta = Math.atan2(ufo.y, ufo.x);
+
+        // Translucent Green Tractor Beam Cone
+        if (!ufo.fleeing) {
+          const beamEndR = MOON_R - 12;
+          const beamSpread = 0.21;
+          ctx.fillStyle = "rgba(74, 222, 128, 0.16)";
+          ctx.beginPath();
+          ctx.moveTo(ufo.x, ufo.y);
+          ctx.lineTo(Math.cos(theta - beamSpread) * beamEndR, Math.sin(theta - beamSpread) * beamEndR);
+          ctx.lineTo(Math.cos(theta + beamSpread) * beamEndR, Math.sin(theta + beamSpread) * beamEndR);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.translate(ufo.x, ufo.y);
+        ctx.rotate(theta + Math.PI * 0.5 + Math.sin(ufo.wobble) * 0.08);
+
+        // Saucer Dome
+        ctx.fillStyle = "rgba(56, 189, 248, 0.65)";
+        ctx.beginPath();
+        ctx.arc(0, -8, 18, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        // Saucer Hull
+        ctx.fillStyle = "#94a3b8";
+        ctx.strokeStyle = "#4ade80";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, -4, 38, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Rim Lights
+        for (let i = -2; i <= 2; i++) {
+          ctx.fillStyle = (Math.floor(simTime * 8) + i) % 2 === 0 ? "#4ade80" : "#facc15";
+          ctx.beginPath();
+          ctx.arc(i * 13, -4, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawParticlesAndRings() {
+        for (const p of particles) {
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        for (const ring of radioRings) {
+          ctx.strokeStyle = ring.color;
+          ctx.globalAlpha = ring.alpha;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawOffscreenIndicators(w, h) {
+        const margin = 28;
+        for (let i = 0; i < goats.length; i++) {
+          const g = goats[i];
+          const sx = camera.x + g.x * camera.zoom;
+          const sy = camera.y + g.y * camera.zoom;
+
+          if (sx < margin || sx > w - margin || sy < margin + 36 || sy > h - margin - 40) {
+            const cx = Math.max(margin, Math.min(w - margin, sx));
+            const cy = Math.max(margin + 36, Math.min(h - margin - 40, sy));
+            const alt = Math.max(0, Math.round(Math.hypot(g.x, g.y) - MOON_R));
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.fillStyle = g.orbitState === "ORBIT" ? "rgba(16, 185, 129, 0.9)" : "rgba(15, 23, 42, 0.88)";
+            ctx.strokeStyle = g.orbitState === "ORBIT" ? "#6ee7b7" : "#38bdf8";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(-24, -12, 48, 24, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#f8fafc";
+            ctx.font = "700 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`🐐 ${alt}m`, 0, 0);
+            ctx.restore();
+          }
+        }
+      }
+
+      function render() {
+        const w = canvas.clientWidth || window.innerWidth;
+        const h = canvas.clientHeight || window.innerHeight;
+
+        ctx.fillStyle = "#040711";
+        ctx.fillRect(0, 0, w, h);
+
+        drawStars(w, h);
+
+        ctx.save();
+        const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+        const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+        ctx.translate(camera.x + shakeX, camera.y + shakeY);
+        ctx.scale(camera.zoom, camera.zoom);
+
+        drawObjective();
+        drawTrajectories();
+        drawMoon();
+        drawProps();
+        drawGoats();
+        drawUfo();
+        drawParticlesAndRings();
+
+        ctx.restore();
+
+        if (meteorFlash > 0) {
+          ctx.fillStyle = `rgba(251, 191, 36, ${(meteorFlash * 0.22).toFixed(2)})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        drawOffscreenIndicators(w, h);
+      }
+
+      // =========================================================================
+      // 11. HUD & TELEMETRY UPDATER
+      // =========================================================================
+      // Only touch the DOM when a value actually changes
+      const hudEls = {};
+      function hudEl(id) {
+        if (!(id in hudEls)) hudEls[id] = document.getElementById(id);
+        return hudEls[id];
+      }
+      function setText(id, text) {
+        const el = hudEl(id);
+        if (el && el.textContent !== text) el.textContent = text;
+      }
+      function setStyle(id, prop, value) {
+        const el = hudEl(id);
+        if (el && el.style[prop] !== value) el.style[prop] = value;
+      }
+
+      const STATE_COLORS = {
+        ORBIT: "#34d399",
+        ESCAPE: "#fb7185",
+        LOST: "#fb7185",
+        SUBORBITAL: "#fbbf24",
+        GROUNDED: "#f8fafc"
+      };
+
+      function updateTopHud() {
+        const orbiting = goats.filter((g) => g.orbitState === "ORBIT").length;
+        const total = goats.length;
+        if (isScoredMode()) {
+          const tag = mode === "daily" ? `D${round}/${DAILY_ROUNDS}` : `R${round}`;
+          const ok = goats.filter(goatQualifies).length;
+          let objText = `${ok}/${total}`;
+          if (objective.type === "band") objText = `▭${objective.bandLo}-${objective.bandHi} • ${ok}/${total}`;
+          if (objective.type === "rings") {
+            objText = `◎${objective.rings.length - ringsRemaining()}/${objective.rings.length} • ${ok}/${total}`;
+          }
+          setText("badgeStatus", `${tag} • ${objText}`);
+        } else {
+          setText("badgeStatus", `Orbit ${orbiting}/${total}`);
+        }
+
+        if (isScoredMode() && orbitLockTimer > 0) {
+          setStyle("badgeLock", "display", "inline-flex");
+          setText("badgeLock", `LOCK ${(ORBIT_LOCK_REQUIRED - orbitLockTimer).toFixed(1)}s`);
+        } else {
+          setStyle("badgeLock", "display", "none");
+        }
+
+        const active = goats[selectedGoatIdx];
+        if (active) {
+          setText("btnSwitchGoat", `${active.isKid ? "🍼" : "🐐"} #${selectedGoatIdx + 1}`);
+        }
+
+        setText("btnZoomReset", camera.manualZoom === null ? "Auto" : `${camera.zoom.toFixed(1)}x`);
+
+        if (!active) return;
+        const alt = Math.max(0, Math.round(Math.hypot(active.x, active.y) - MOON_R));
+        const vel = Math.round(Math.hypot(active.vx, active.vy));
+        const stateColor = STATE_COLORS[active.orbitState] || "#f8fafc";
+
+        if (tutorialOpen) return;
+
+        // In-game Flight Readout
+        const el = active.orbitEl;
+        let apText = "—";
+        let peText = "—";
+        if (el && el.bound) {
+          apText = el.ap > MAX_FAR_R ? "LOST" : `${Math.round(el.ap - MOON_R)}`;
+          peText = el.pe < MOON_R - 40 ? "crash" : `${Math.round(el.pe - MOON_R)}`;
+        } else if (el && !el.bound) {
+          apText = "∞";
+        }
+        setText("fhState", active.orbitState);
+        setStyle("fhState", "color", stateColor);
+        setText("fhAlt", `${alt}`);
+        setText("fhSpd", `${vel}`);
+        setText("fhAp", apText);
+        setStyle("fhAp", "color", apText === "LOST" || apText === "∞" ? "#fb7185" : "#f8fafc");
+        setText("fhPe", peText);
+        const peSafe = el && el.bound && el.pe > MAX_TERRAIN_R + (active.isKid ? 11 : 17);
+        setStyle("fhPe", "color", peSafe ? "#34d399" : "#fbbf24");
+        setText("fhFuel", `${Math.round(active.fuel * 100)}%`);
+        setStyle("fhFuel", "color", active.fuel > 0.25 ? "#f8fafc" : "#fb7185");
+        const fine = isFineThrust();
+        const thrPct = Math.round(active.throttle * 100);
+        setText("fhThr", fine ? `FINE ${thrPct}%` : `${thrPct}%`);
+        if (isScoredMode()) {
+          const n = Math.max(1, roundStats.goats);
+          const parDv = PAR_DV_PER_GOAT[objective.type] * n;
+          const parTime = PAR_TIME_BASE + PAR_TIME_PER_GOAT[objective.type] * n;
+          setText("fhTime", `${Math.floor(roundStats.time)}/${Math.round(parTime)}s`);
+          setStyle("fhTime", "color", roundStats.time <= parTime ? "#f8fafc" : "#fb7185");
+          setText("fhDv", `${Math.round(roundStats.dv)}/${parDv}`);
+          setStyle("fhDv", "color", roundStats.dv <= parDv ? "#f8fafc" : "#fb7185");
+        }
+        setStyle("fhThr", "color", fine ? "#c4b5fd" : "#f8fafc");
+      }
+
+      // =========================================================================
+      // 12. INPUT LISTENERS (DESKTOP ERGONOMIC LAYOUT + MOBILE TOUCH + ZOOM)
+      // =========================================================================
+      window.addEventListener("keydown", (e) => {
+        if (resultsOpen) {
+          if (!e.repeat && (e.code === "Enter" || e.code === "Space")) {
+            e.preventDefault();
+            handleResultsAction(document.getElementById("btnResPrimary").dataset.action);
+          }
+          return;
+        }
+        if (tutorialOpen) {
+          if (e.code === "Enter" || e.code === "Space") {
+            e.preventDefault();
+            closeTutorialAndLaunch(mode);
+          }
+          return;
+        }
+
+        keys[e.code] = true;
+        if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.code)) {
+          e.preventDefault();
+        }
+        const active = goats[selectedGoatIdx];
+        if (!e.repeat && (e.code === "Space" || e.code === "ArrowUp" || e.code === "Enter")) {
+          triggerPronk(active);
+        } else if (!e.repeat && (e.code === "KeyZ" || e.code === "KeyF" || e.code === "KeyE")) {
+          triggerSmartAction(active);
+        } else if (!e.repeat && (e.code === "ArrowDown" || e.code === "KeyG")) {
+          triggerNibble(active);
+        } else if (!e.repeat && (e.code === "KeyC" || e.code === "KeyB")) {
+          triggerBleat(active);
+        } else if (!e.repeat && e.code === "Tab") {
+          selectedGoatIdx = (selectedGoatIdx + 1) % Math.max(1, goats.length);
+          updateTopHud();
+        } else if (!e.repeat && e.code === "Digit0") {
+          camera.manualZoom = null;
+          showToast("🔍 Camera Auto-Fit Enabled");
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        keys[e.code] = false;
+      });
+
+      // Release everything if the window loses focus mid-press (prevents stuck keys)
+      window.addEventListener("blur", clearHeldInputs);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) clearHeldInputs();
+      });
+
+      // Desktop Click on Goat to Select & Double-Click Sky to Reset Auto-Fit Zoom
+      canvas.addEventListener("click", (e) => {
+        if (tutorialOpen || resultsOpen) return;
+        selectGoatAtScreenPos(e.clientX, e.clientY);
+      });
+
+      // Desktop Mouse Wheel Zoom
+      canvas.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          const current = camera.manualZoom !== null ? camera.manualZoom : camera.zoom;
+          const factor = e.deltaY < 0 ? 1.12 : 0.89;
+          camera.manualZoom = Math.max(0.22, Math.min(2.2, current * factor));
+          updateTopHud();
+        },
+        { passive: false }
+      );
+
+      canvas.addEventListener("dblclick", () => {
+        camera.manualZoom = null;
+        showToast("🔍 Camera Auto-Fit Enabled");
+        updateTopHud();
+      });
+
+      // Mobile Two-Finger Pinch Zoom, Tap Goat to Select & Double-Tap Sky Reset
+      let pinchStartDist = 0;
+      let pinchStartZoom = 0.8;
+      let lastCanvasTapTime = 0;
+
+      canvas.addEventListener(
+        "touchstart",
+        (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            pinchStartDist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            ) || 1;
+            pinchStartZoom = camera.manualZoom !== null ? camera.manualZoom : camera.zoom;
+          } else if (e.touches.length === 1 && !tutorialOpen) {
+            const touch = e.touches[0];
+            const pickedGoat = selectGoatAtScreenPos(touch.clientX, touch.clientY);
+            const now = performance.now();
+            if (!pickedGoat && now - lastCanvasTapTime < 280) {
+              camera.manualZoom = null;
+              showToast("🔍 Camera Auto-Fit Enabled");
+              updateTopHud();
+            }
+            lastCanvasTapTime = now;
+          }
+        },
+        { passive: false }
+      );
+
+      canvas.addEventListener(
+        "touchmove",
+        (e) => {
+          if (e.touches.length === 2 && pinchStartDist > 0) {
+            e.preventDefault();
+            const dist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            camera.manualZoom = Math.max(0.22, Math.min(2.2, pinchStartZoom * (dist / pinchStartDist)));
+            updateTopHud();
+          }
+        },
+        { passive: false }
+      );
+
+      canvas.addEventListener("touchend", (e) => {
+        if (e.touches.length < 2) pinchStartDist = 0;
+      });
+
+      // Mobile Touch Button Binding Helper
+      function bindHoldButton(btnId, stateKey, onTap) {
+        const el = document.getElementById(btnId);
+        if (!el) return;
+        const press = (e) => {
+          e.preventDefault();
+          if (resultsOpen || tutorialOpen) return;
+          ensureAudio();
+          touchState[stateKey] = true;
+          el.classList.add("pressed");
+          if (onTap) onTap();
+        };
+        const release = (e) => {
+          e.preventDefault();
+          touchState[stateKey] = false;
+          el.classList.remove("pressed");
+        };
+        el.addEventListener("pointerdown", press);
+        el.addEventListener("pointerup", release);
+        el.addEventListener("pointercancel", release);
+        el.addEventListener("pointerleave", release);
+      }
+
+      bindHoldButton("btnLeft", "left");
+      bindHoldButton("btnRight", "right");
+      bindHoldButton("btnAction", "action", () => triggerSmartAction(goats[selectedGoatIdx]));
+      bindHoldButton("btnBoost", "boost");
+      bindHoldButton("btnPronk", "pronk", () => triggerPronk(goats[selectedGoatIdx]));
+
+      // FINE is a latching toggle (tap on / tap off), not a hold button
+      const btnFine = document.getElementById("btnFine");
+      btnFine.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        fineToggle = !fineToggle;
+        btnFine.classList.toggle("on", fineToggle);
+        btnFine.setAttribute("aria-pressed", String(fineToggle));
+        showToast(fineToggle ? "🎚 Fine Thrust ON (25% max)" : "🎚 Fine Thrust OFF (full power)");
+      });
+
+      // Top HUD & Tutorial Modal Buttons
+      document.getElementById("btnLaunchHerd").addEventListener("click", () => closeTutorialAndLaunch("herding"));
+      document.getElementById("btnLaunchSandbox").addEventListener("click", () => closeTutorialAndLaunch("sandbox"));
+      document.getElementById("btnLaunchDaily").addEventListener("click", () => closeTutorialAndLaunch("daily"));
+      document.getElementById("btnHelp").addEventListener("click", () => {
+        if (!resultsOpen) openTutorialOverlay();
+      });
+
+      document.getElementById("btnResPrimary").addEventListener("click", (e) => handleResultsAction(e.currentTarget.dataset.action));
+      document.getElementById("btnResSecondary").addEventListener("click", (e) => handleResultsAction(e.currentTarget.dataset.action));
+
+      document.getElementById("btnMode").addEventListener("click", () => {
+        if (resultsOpen) return;
+        const next = mode === "sandbox" ? "herding" : "sandbox";
+        closeTutorialAndLaunch(next);
+      });
+
+      document.getElementById("btnSpawnToggle").addEventListener("click", () => {
+        document.getElementById("spawnDrawer").classList.toggle("open");
+      });
+
+      document.getElementById("spawnDrawer").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-spawn]");
+        if (!btn) return;
+        const type = btn.getAttribute("data-spawn");
+        const randomAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 2.2;
+        if (type === "adult") {
+          goats.push(createGoat(randomAngle, false, false));
+          showToast("🐐 Spawned Adult Space Goat");
+        } else if (type === "kid") {
+          goats.push(createGoat(randomAngle, true, false));
+          showToast("🍼 Spawned Baby Goat Kid");
+        } else if (type === "boulder") {
+          boulders.push(createBoulder(randomAngle));
+          showToast("🪨 Spawned Rolling Moon Boulder");
+        } else if (type === "canister") {
+          canisters.push(createCanister(randomAngle));
+          showToast("🧪 Spawned Pressurized O2 Canister");
+        } else if (type === "moss") {
+          mossPatches.push(createMoss(randomAngle));
+          showToast("🌿 Planted Glowing Moon-Moss");
+        } else if (type === "ufo") {
+          ufoTimer = 0;
+          showToast("🛸 Summoning Alien Saucer...");
+        } else if (type === "reset") {
+          initWorld();
+          showToast("↺ Sandbox World Reset");
+        }
+        updateTopHud();
+      });
+
+      document.getElementById("btnSwitchGoat").addEventListener("click", () => {
+        selectedGoatIdx = (selectedGoatIdx + 1) % Math.max(1, goats.length);
+        updateTopHud();
+      });
+
+      document.getElementById("btnZoomReset").addEventListener("click", () => {
+        camera.manualZoom = null;
+        showToast("🔍 Camera Auto-Fit Enabled");
+        updateTopHud();
+      });
+
+      document.getElementById("btnMute").addEventListener("click", (e) => {
+        muted = !muted;
+        e.currentTarget.textContent = muted ? "🔇" : "🔊";
+      });
+
+      // =========================================================================
+      // 13. RESPONSIVE CANVAS RESIZING & FIXED-TIMESTEP MAIN LOOP
+      // =========================================================================
+      function resizeCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        measureLayout();
+        updateCamera(0.1);
+        render();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(resizeCanvas).observe(document.body);
+      }
+
+      // Initialize world & open on Controls Tutorial immediately
+      initWorld();
+      renderAchievementList();
+      resizeCanvas();
+
+      // Fixed-timestep loop: physics always advances in 1/120 s steps, so orbits
+      // behave identically on 60 Hz, 120 Hz and 144 Hz displays.
+      const FIXED_DT = 1 / 120;
+      const MAX_STEPS_PER_FRAME = 8;
+      let accumulator = 0;
+      let lastTime = performance.now();
+      function gameLoop(now) {
+        const frameDt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        accumulator += frameDt;
+
+        let steps = 0;
+        if (resultsOpen) accumulator = 0; // world freezes behind the results screen
+        while (accumulator >= FIXED_DT && steps < MAX_STEPS_PER_FRAME) {
+          stepPhysics(FIXED_DT);
+          accumulator -= FIXED_DT;
+          steps++;
+        }
+        if (steps === MAX_STEPS_PER_FRAME) accumulator = 0; // drop backlog after a hitch
+
+        for (const g of goats) buildTrajectory(g);
+        updateTopHud();
+        updateCamera(Math.max(frameDt, 0.001));
+        render();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>
