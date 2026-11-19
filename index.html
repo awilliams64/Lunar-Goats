@@ -579,6 +579,178 @@
       }
     }
 
+    /* ---- Flight School button & coach ---- */
+    #tutorialOverlay .tut-actions .btn-launch-secondary {
+      flex: 1 1 120px;
+    }
+
+    .btn-launch-secondary.recommended {
+      border-color: #6ee7b7;
+      color: #d1fae5;
+      background: rgba(16, 185, 129, 0.18);
+      box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+    }
+
+    .school-note {
+      color: #a7f3d0;
+    }
+
+    .coach {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 84px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 19;
+      width: min(440px, calc(100vw - 24px));
+      background: rgba(6, 78, 59, 0.88);
+      border: 1px solid rgba(110, 231, 183, 0.6);
+      border-radius: 14px;
+      padding: 10px 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      text-align: center;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .coach-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #6ee7b7;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .coach-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f0fdf4;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .coach-live {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fde68a;
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .coach-msg {
+      font-size: 12.5px;
+      color: #fecaca;
+      margin-top: 4px;
+    }
+
+    .coach-dots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .coach-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .coach-dot.done {
+      background: #34d399;
+    }
+
+    .coach-dot.now {
+      background: #fde68a;
+      box-shadow: 0 0 8px rgba(253, 230, 138, 0.8);
+    }
+
+    .coach-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .coach-actions button {
+      flex: 1 1 140px;
+      min-height: 40px;
+    }
+
+    /* ---- Herd roster & settings ---- */
+    .roster-list {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .roster-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      margin-bottom: 5px;
+    }
+
+    .roster-swatch {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid;
+    }
+
+    .roster-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .roster-info b {
+      color: #f8fafc;
+      font-size: 12.5px;
+    }
+
+    .roster-info small {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
+    .roster-badges {
+      flex: 0 0 auto;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .set-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 6px 0;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: #e2e8f0;
+    }
+
+    .set-row input {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: #38bdf8;
+      flex: 0 0 auto;
+    }
+
+    .set-row b {
+      display: block;
+    }
+
+    .set-row small {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
     /* ---- Round results ---- */
     #resultsOverlay {
       position: fixed;
@@ -927,6 +1099,9 @@
   <!-- Toast Event Notification -->
   <div id="toastBanner"></div>
 
+  <!-- Flight School coach panel -->
+  <div id="coach" class="coach" aria-live="polite" style="display:none"></div>
+
   <!-- Live Flight Readout for the Active Goat -->
   <div id="flightHud" class="hidden" aria-live="off">
     <div class="fh-item"><span class="fh-label">STATE</span><span id="fhState" class="fh-val">GROUNDED</span></div>
@@ -952,8 +1127,10 @@
       <div class="tut-actions">
         <button id="btnLaunchHerd" class="btn-launch-primary">🚀 LAUNCH HERD</button>
         <button id="btnLaunchDaily" class="btn-launch-secondary">📅 DAILY CHALLENGE</button>
+        <button id="btnLaunchSchool" class="btn-launch-secondary">🎓 FLIGHT SCHOOL</button>
         <button id="btnLaunchSandbox" class="btn-launch-secondary subtle">🧪 SANDBOX</button>
       </div>
+      <div id="schoolNote" class="menu-note school-note">🎓 New here? Start with <b>Flight School</b>: a 2-minute guided first orbit.</div>
       <div id="dailyBestLine" class="menu-note">📅 Today's Daily Challenge: not played yet</div>
 
       <details class="menu-section">
@@ -986,7 +1163,9 @@
           <li><strong>Red line = trouble.</strong> LOST or ESCAPE means the goat will drift away. Turn around and burn to slow down.</li>
           <li><strong>Save fuel.</strong> Stars come from beating the par time and the Δv par. A headbutt nudge can push a herd-mate into orbit for free.</li>
           <li><strong>Rounds rotate:</strong> full orbit → altitude band → ring gates. Moss refuels you and grows kids.</li>
-          <li><strong>Hazards arrive later:</strong> meteor strikes start in round 3 and UFO abductions in round 4 (rounds 2 and 3 in the Daily). Headbutt the UFO to stop it.</li>
+          <li><strong>📦 Supply crates (round 2+):</strong> match the crate's orbit and drift into it slowly (under 80 relative speed) for a full tank and +150 points. To catch up with something ahead of you, slow down: a lower orbit is faster.</li>
+          <li><strong>🛰️ Space debris (round 5+):</strong> a pulsing ⚠ marker shows where a collision would happen and how soon. A short burn changes your path and dodges it.</li>
+          <li><strong>Hazards arrive later:</strong> meteor strikes start in round 3, UFO abductions in round 4 and space debris in round 5 (meteors and UFO arrive in rounds 2 and 3 of the Daily). Headbutt the UFO to stop it.</li>
         </ul>
       </details>
 
@@ -998,11 +1177,22 @@
       </details>
 
       <details class="menu-section">
+        <summary>🐐 Herd Roster <span id="rosterCount" class="ach-count">0/8</span></summary>
+        <div id="rosterList" class="roster-list"></div>
+      </details>
+
+      <details class="menu-section">
+        <summary>⚙️ Settings</summary>
+        <label class="set-row"><input type="checkbox" id="setColorBlind"> <span><b>Colour-blind friendly paths</b><small>Blue/orange/magenta colours plus distinct line patterns: solid = orbit, long dashes = falling, dots = lost.</small></span></label>
+        <label class="set-row"><input type="checkbox" id="setLevel" checked> <span><b>Level assist</b><small>Nose snaps back to horizontal when you let go of ◀ ▶ (also Q / LEVEL button).</small></span></label>
+      </details>
+
+      <details class="menu-section">
         <summary>🏆 Achievements <span id="achCount" class="ach-count">0/11</span></summary>
         <div id="achGrid" class="ach-grid"></div>
       </details>
 
-      <div class="menu-footer">Live readout during play: <b>ALT · SPD · Ap · Pe · FUEL · THR</b></div>
+      <div class="menu-footer">Live readout during play: <b>ALT · SPD · Ap · Pe · FUEL · THR · NOSE</b></div>
     </div>
   </div>
 
@@ -1419,15 +1609,27 @@
         { coat: "#e2e8f0", horns: "#94a3b8", visor: "#34d399", name: "Clover" },
         { coat: "#fde68a", horns: "#d97706", visor: "#f472b6", name: "Pip" },
         { coat: "#cbd5e1", horns: "#64748b", visor: "#a78bfa", name: "Nibbles" },
-        { coat: "#fed7aa", horns: "#ea580c", visor: "#22d3ee", name: "Bramble" }
+        { coat: "#fed7aa", horns: "#ea580c", visor: "#22d3ee", name: "Bramble" },
+        { coat: "#d6d3d1", horns: "#78716c", visor: "#facc15", name: "Juniper" },
+        { coat: "#fecaca", horns: "#b91c1c", visor: "#60a5fa", name: "Ziggy" },
+        { coat: "#e7e5e4", horns: "#57534e", visor: "#fb923c", name: "Maple" }
       ];
+
+      // Each goat in the herd gets a unique, stable name (Barnaby is always your
+      // first goat), so the Herd Roster can follow the same goat across rounds.
+      function pickPalette() {
+        const used = new Set(goats.map((g) => g.palette.name));
+        return GOAT_PALETTES.find((p) => !used.has(p.name)) || GOAT_PALETTES[goats.length % GOAT_PALETTES.length];
+      }
 
       function createGoat(theta, isKid = false, alienMutated = false) {
         const surfR = getTerrainRadius(theta);
         const halfH = isKid ? 11 : 17;
         const r = surfR + halfH;
-        const pal = GOAT_PALETTES[goats.length % GOAT_PALETTES.length];
+        const pal = pickPalette();
         return {
+          lapAngle: 0,
+          lapPrev: theta,
           id: Math.random().toString(36).slice(2, 8),
           x: Math.cos(theta) * r,
           y: Math.sin(theta) * r,
@@ -1538,8 +1740,9 @@
       // Hazards are introduced gradually so new players learn the controls first.
       // Sandbox always has them; the 3-round Daily ramps up faster.
       const HAZARD_START = {
-        herding: { meteors: 3, ufo: 4 },
-        daily: { meteors: 2, ufo: 3 }
+        herding: { meteors: 3, ufo: 4, debris: 5 },
+        daily: { meteors: 2, ufo: 3 }, // no debris in the 3-round Daily
+        school: { meteors: Infinity, ufo: Infinity, debris: Infinity }
       };
       function meteorsActive(r = round) {
         const h = HAZARD_START[mode];
@@ -1556,6 +1759,7 @@
         const parts = [];
         if (r === h.meteors) parts.push("☄️ meteor strikes");
         if (r === h.ufo) parts.push("🛸 UFO abductions");
+        if (r === h.debris) parts.push("🛰️ space-debris fields");
         return parts.length ? `Heads up: ${parts.join(" and ")} begin this round!` : "";
       }
 
@@ -1741,7 +1945,7 @@
       }
 
       function freshStats(goatCount) {
-        return { time: 0, dv: 0, lost: 0, abducted: 0, headbutts: 0, goats: goatCount };
+        return { time: 0, dv: 0, lost: 0, abducted: 0, headbutts: 0, goats: goatCount, crates: 0, debrisHits: 0 };
       }
 
       function isScoredMode() {
@@ -1839,7 +2043,7 @@
         if (objective.type === "rings") {
           return `💫 Fly through all ${objective.rings.length} rings, then orbit the herd`;
         }
-        return "🎯 Put every goat in a safe green orbit";
+        return `🎯 Put every goat in a safe ${safeWord()} orbit`;
       }
 
       // ---- Achievements ----
@@ -1854,7 +2058,10 @@
         { id: "bandleader", icon: "📏", name: "Band Leader", desc: "Clear an Altitude Band round" },
         { id: "ringmaster", icon: "💫", name: "Ring Master", desc: "Clear a Ring Gates round" },
         { id: "nobodyleft", icon: "🤝", name: "Nobody Left Behind", desc: "Clear round 3+ with no goats lost or abducted" },
-        { id: "daily", icon: "📅", name: "Daily Driver", desc: "Finish a Daily Challenge" }
+        { id: "daily", icon: "📅", name: "Daily Driver", desc: "Finish a Daily Challenge" },
+        { id: "graduate", icon: "🎓", name: "Graduate", desc: "Complete Flight School" },
+        { id: "rendezvous", icon: "📦", name: "Rendezvous", desc: "Match orbits and grab a supply crate" },
+        { id: "dodger", icon: "🛰️", name: "Collision Avoidance", desc: "Dodge a predicted debris collision" }
       ];
       let unlockedAch = loadJSON("achievements", {});
       let newlyUnlocked = [];
@@ -1905,7 +2112,8 @@
               Math.max(0, parTime - roundStats.time) * SCORE_PER_SEC_UNDER_PAR +
               Math.max(0, parDv - roundStats.dv) * SCORE_PER_DV_UNDER_PAR -
               roundStats.lost * LOST_PENALTY -
-              roundStats.abducted * ABDUCT_PENALTY
+              roundStats.abducted * ABDUCT_PENALTY +
+              (roundStats.crates || 0) * CRATE_BONUS
           )
         );
         return { parDv, parTime, underTime, underDv, stars, score };
@@ -1916,6 +2124,9 @@
         const type = objective.type;
 
         unlockAchievement("shepherd");
+        // Every goat that helped clear the round gets credit in the roster
+        for (const g of goats) rosterEntry(g.palette.name).rounds += 1;
+        saveRoster();
         if (res.stars === 3) unlockAchievement("ace");
         if (roundStats.dv < res.parDv * 0.5) unlockAchievement("frugal");
         if (round >= 2 && roundStats.headbutts === 0) unlockAchievement("pacifist");
@@ -1961,7 +2172,9 @@
           row("Time", `${roundStats.time.toFixed(1)}s / par ${Math.round(res.parTime)}s`, res.underTime) +
           row("Your Δv", `${Math.round(roundStats.dv)} / par ${res.parDv}`, res.underDv) +
           row("Goats lost", `${roundStats.lost}`, roundStats.lost === 0) +
-          row("Abducted", `${roundStats.abducted}`, roundStats.abducted === 0);
+          row("Abducted", `${roundStats.abducted}`, roundStats.abducted === 0) +
+          (crateActive() ? row("Supply crate", roundStats.crates ? `✓ +${roundStats.crates * CRATE_BONUS}` : "missed", roundStats.crates > 0) : "") +
+          (debrisActive() ? row("Debris hits", `${roundStats.debrisHits || 0}`, !roundStats.debrisHits) : "");
 
         document.getElementById("resScore").innerHTML =
           `<div class="res-points">${res.score} pts</div><div class="res-best ${isNewBest ? "new" : ""}">${bestText}</div>`;
@@ -2090,6 +2303,600 @@
       }
 
       // =========================================================================
+      // 5c. SETTINGS, GOAT ROSTER, DEBRIS & CONJUNCTIONS, SUPPLY CRATE, FLIGHT SCHOOL
+      // =========================================================================
+
+      // ---- Settings: colour-blind friendly path styles ----
+      let colorBlindMode = Boolean(loadJSON("colorBlind", false));
+      // Colour-blind mode swaps green/red for blue/orange/magenta AND gives every
+      // path state its own line pattern, so colour is never the only cue.
+      const PATH_STYLES = {
+        normal: {
+          ORBIT: { rgb: "52, 211, 153", dash: [6, 6] },
+          BAND_OUT: { rgb: "56, 189, 248", dash: [6, 6] },
+          SUBORBITAL: { rgb: "251, 191, 36", dash: [6, 6] },
+          LOST: { rgb: "251, 113, 133", dash: [6, 6] }
+        },
+        colorBlind: {
+          ORBIT: { rgb: "96, 165, 250", dash: [] }, // solid blue = safe orbit
+          BAND_OUT: { rgb: "226, 232, 240", dash: [14, 5, 3, 5] }, // grey dash-dot
+          SUBORBITAL: { rgb: "251, 146, 60", dash: [14, 8] }, // orange long dashes
+          LOST: { rgb: "232, 121, 249", dash: [2, 6] } // magenta dots
+        }
+      };
+      function pathStyle(key) {
+        return (colorBlindMode ? PATH_STYLES.colorBlind : PATH_STYLES.normal)[key];
+      }
+      // Text colours for HUD states
+      function stateColorFor(state) {
+        const cb = colorBlindMode;
+        if (state === "ORBIT") return cb ? "#60a5fa" : "#34d399";
+        if (state === "SUBORBITAL") return cb ? "#fb923c" : "#fbbf24";
+        if (state === "LOST" || state === "ESCAPE") return cb ? "#e879f9" : "#fb7185";
+        return "#f8fafc";
+      }
+      // How a safe orbit path looks, in words, for the current colour setting
+      function safeWord() {
+        return colorBlindMode ? "solid blue" : "green";
+      }
+
+      function setColorBlind(on) {
+        colorBlindMode = on;
+        saveJSON("colorBlind", on);
+        const cbBox = document.getElementById("setColorBlind");
+        if (cbBox) cbBox.checked = on;
+        document.body.classList.toggle("cb", on);
+      }
+
+      // ---- Goat roster: persistent per-goat records ----
+      let roster = loadJSON("roster", {});
+      if (!roster || typeof roster !== "object") roster = {};
+      function rosterEntry(name) {
+        if (!roster[name]) roster[name] = { orbits: 0, rounds: 0, lost: 0, abducted: 0, since: todayKey() };
+        return roster[name];
+      }
+      function saveRoster() {
+        saveJSON("roster", roster);
+      }
+      const ROSTER_BADGES = [
+        { icon: "🛰️", label: "First orbit", test: (r) => r.orbits >= 1 },
+        { icon: "🌕", label: "10 orbits", test: (r) => r.orbits >= 10 },
+        { icon: "🌟", label: "50 orbits", test: (r) => r.orbits >= 50 },
+        { icon: "🎖️", label: "Veteran: 10 rounds cleared", test: (r) => r.rounds >= 10 },
+        { icon: "🛸", label: "Abducted by aliens (and came back)", test: (r) => r.abducted >= 1 },
+        { icon: "🌌", label: "Once lost in deep space", test: (r) => r.lost >= 1 }
+      ];
+      const ORBIT_MILESTONES = new Set([1, 10, 25, 50, 100, 250, 500]);
+
+      // Count completed laps for goats in a safe orbit
+      function trackGoatLaps(g) {
+        const th = Math.atan2(g.y, g.x);
+        if (g.orbitState === "ORBIT" && !tutorialOpen) {
+          g.lapAngle += normalizeAngle(th - g.lapPrev);
+          if (Math.abs(g.lapAngle) >= Math.PI * 2) {
+            g.lapAngle -= Math.sign(g.lapAngle) * Math.PI * 2;
+            const entry = rosterEntry(g.palette.name);
+            entry.orbits += 1;
+            if (ORBIT_MILESTONES.has(entry.orbits)) {
+              showToast(`🛰️ ${g.palette.name} completed orbit #${entry.orbits}!`);
+              saveRoster();
+            }
+          }
+        } else {
+          g.lapAngle = 0;
+        }
+        g.lapPrev = th;
+      }
+
+      function renderRoster() {
+        const list = document.getElementById("rosterList");
+        if (!list) return;
+        list.replaceChildren();
+        const names = GOAT_PALETTES.map((p) => p.name).filter((n) => roster[n]);
+        document.getElementById("rosterCount").textContent = `${names.length}/${GOAT_PALETTES.length}`;
+        if (!names.length) {
+          list.textContent = "Your goats' flight records appear here once they fly.";
+          return;
+        }
+        names.sort((a, b) => roster[b].orbits - roster[a].orbits);
+        for (const name of names) {
+          const r = roster[name];
+          const pal = GOAT_PALETTES.find((p) => p.name === name);
+          const row = document.createElement("div");
+          row.className = "roster-row";
+          const sw = document.createElement("span");
+          sw.className = "roster-swatch";
+          sw.style.background = pal.coat;
+          sw.style.borderColor = pal.visor;
+          const info = document.createElement("span");
+          info.className = "roster-info";
+          const nm = document.createElement("b");
+          nm.textContent = name;
+          const stats = document.createElement("small");
+          stats.textContent = `🛰 ${r.orbits} orbit${r.orbits === 1 ? "" : "s"} · 🏁 ${r.rounds} round${r.rounds === 1 ? "" : "s"}` +
+            (r.lost ? ` · 🌌 lost ${r.lost}` : "") + (r.abducted ? ` · 🛸 abducted ${r.abducted}` : "");
+          info.append(nm, stats);
+          const badges = document.createElement("span");
+          badges.className = "roster-badges";
+          for (const b of ROSTER_BADGES) {
+            if (!b.test(r)) continue;
+            const s = document.createElement("span");
+            s.textContent = b.icon;
+            s.title = b.label;
+            badges.append(s);
+          }
+          row.append(sw, info, badges);
+          list.append(row);
+        }
+      }
+
+      // ---- Space debris & conjunction (close-approach) alerts ----
+      let debris = [];
+      let conjunctions = []; // current predicted close approaches
+      let conjTimer = 0;
+      const warnedPairs = new Map(); // key -> {tca, firstMiss, goatName, hit}
+      const DEBRIS_HIT_R = 13;
+      const CONJ_WARN_MISS = 34; // warn if predicted miss distance is below this
+      const CONJ_LOOKAHEAD = 6; // seconds ahead
+      const CONJ_STEP = 0.05;
+
+      function debrisActive(r = round) {
+        const h = HAZARD_START[mode];
+        return !h || (h.debris !== undefined && r >= h.debris);
+      }
+
+      function spawnDebrisField(rng) {
+        debris = [];
+        conjunctions = [];
+        warnedPairs.clear();
+        if (!debrisActive()) return;
+        const h = HAZARD_START[mode];
+        const count = h ? Math.min(5, 2 + (round - h.debris)) : 3;
+        for (let i = 0; i < count; i++) {
+          const ang = rng() * Math.PI * 2;
+          const r = MOON_R + 140 + rng() * 190;
+          const dir = rng() < 0.25 ? -1 : 1; // some debris orbits the "wrong" way
+          const v = Math.sqrt(GM / r) * (0.97 + rng() * 0.06) * dir;
+          const pts = [];
+          const n = 5 + Math.floor(rng() * 3);
+          for (let k = 0; k < n; k++) pts.push([(k / n) * Math.PI * 2, 4 + rng() * 4]);
+          debris.push({
+            id: `d${i}`,
+            x: Math.cos(ang) * r,
+            y: Math.sin(ang) * r,
+            vx: -Math.sin(ang) * v,
+            vy: Math.cos(ang) * v,
+            spin: (rng() - 0.5) * 3,
+            angle: rng() * 6,
+            pts
+          });
+        }
+      }
+
+      // Propagate two bodies under gravity and return their closest approach
+      function predictClosestApproach(a, b) {
+        let ax = a.x, ay = a.y, avx = a.vx, avy = a.vy;
+        let bx = b.x, by = b.y, bvx = b.vx, bvy = b.vy;
+        let best = Math.hypot(ax - bx, ay - by);
+        let bestT = 0;
+        let bestX = ax;
+        let bestY = ay;
+        for (let t = CONJ_STEP; t <= CONJ_LOOKAHEAD; t += CONJ_STEP) {
+          let r = Math.hypot(ax, ay);
+          let k = -GM / (r * r * r);
+          avx += ax * k * CONJ_STEP;
+          avy += ay * k * CONJ_STEP;
+          ax += avx * CONJ_STEP;
+          ay += avy * CONJ_STEP;
+          r = Math.hypot(bx, by);
+          k = -GM / (r * r * r);
+          bvx += bx * k * CONJ_STEP;
+          bvy += by * k * CONJ_STEP;
+          bx += bvx * CONJ_STEP;
+          by += bvy * CONJ_STEP;
+          if (Math.hypot(ax, ay) < MOON_R) break; // goat would hit the moon first
+          const d = Math.hypot(ax - bx, ay - by);
+          if (d < best) {
+            best = d;
+            bestT = t;
+            bestX = ax;
+            bestY = ay;
+          }
+        }
+        return { miss: best, t: bestT, x: bestX, y: bestY };
+      }
+
+      function updateDebris(dt) {
+        if (!debris.length) return;
+        for (const d of debris) {
+          const r = Math.hypot(d.x, d.y) || 1;
+          const k = -GM / (r * r * r);
+          d.vx += d.x * k * dt;
+          d.vy += d.y * k * dt;
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          d.angle += d.spin * dt;
+        }
+
+        // Collisions with airborne goats
+        for (let i = debris.length - 1; i >= 0; i--) {
+          const d = debris[i];
+          for (const g of goats) {
+            if (g.grounded) continue;
+            if (Math.hypot(g.x - d.x, g.y - d.y) < DEBRIS_HIT_R + (g.isKid ? 5 : 8)) {
+              const rvx = d.vx - g.vx;
+              const rvy = d.vy - g.vy;
+              const rs = Math.hypot(rvx, rvy) || 1;
+              const kick = Math.min(110, 30 + rs * 0.12);
+              g.vx += (rvx / rs) * kick;
+              g.vy += (rvy / rs) * kick;
+              g.faintTimer = Math.max(g.faintTimer, 1.6);
+              g.angVel = (Math.random() < 0.5 ? -1 : 1) * 5;
+              screenShake = Math.max(screenShake, 6);
+              playSound("ram");
+              for (let p = 0; p < 16; p++) {
+                spawnParticle(d.x, d.y, (Math.random() - 0.5) * 220, (Math.random() - 0.5) * 220, p % 2 ? "#cbd5e1" : "#fbbf24", 0.5, 3);
+              }
+              roundStats.debrisHits = (roundStats.debrisHits || 0) + 1;
+              for (const [key, w] of warnedPairs) if (key.endsWith(`|${d.id}`)) w.hit = true;
+              showToast(`💥 ${g.palette.name} was hit by space debris!`);
+              debris.splice(i, 1);
+              break;
+            }
+          }
+        }
+
+        // Re-predict close approaches a few times per second
+        conjTimer -= dt;
+        if (conjTimer <= 0) {
+          conjTimer = 0.25;
+          conjunctions = [];
+          const player = goats[selectedGoatIdx];
+          for (const g of goats) {
+            if (g.grounded) continue;
+            for (const d of debris) {
+              const ca = predictClosestApproach(g, d);
+              if (ca.miss >= CONJ_WARN_MISS || ca.t <= 0) continue;
+              conjunctions.push({ goat: g, debris: d, ...ca });
+              const key = `${g.id}|${d.id}`;
+              const tca = simTime + ca.t;
+              const prev = warnedPairs.get(key);
+              if (!prev) {
+                warnedPairs.set(key, { tca, firstMiss: ca.miss, goatName: g.palette.name, isPlayer: g === player, hit: false });
+                if (g === player) {
+                  showToast(`⚠️ Conjunction: ${g.palette.name} vs debris in ${ca.t.toFixed(1)}s (miss ${Math.round(ca.miss)})`);
+                }
+              } else {
+                prev.tca = tca;
+                prev.isPlayer = prev.isPlayer || g === player;
+              }
+            }
+          }
+          // Resolve warnings whose time of closest approach has passed
+          for (const [key, w] of warnedPairs) {
+            if (simTime > w.tca + 0.4) {
+              if (!w.hit && w.isPlayer && w.firstMiss < DEBRIS_HIT_R + 8) {
+                showToast(`✅ Dodged! ${w.goatName} avoided the debris`);
+                unlockAchievement("dodger");
+              }
+              warnedPairs.delete(key);
+            }
+          }
+        }
+      }
+
+      function drawDebris() {
+        if (!debris.length) return;
+        const px = 1 / Math.max(0.3, camera.zoom);
+        for (const d of debris) {
+          ctx.save();
+          ctx.translate(d.x, d.y);
+          ctx.rotate(d.angle);
+          ctx.fillStyle = "#64748b";
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          d.pts.forEach(([a, rad], k) => {
+            const x = Math.cos(a) * rad;
+            const y = Math.sin(a) * rad;
+            if (k === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // a broken solar panel stub
+          ctx.fillStyle = "#1d4ed8";
+          ctx.fillRect(4, -1.5, 6, 3);
+          ctx.restore();
+        }
+        // Conjunction markers: where the goat will be at closest approach
+        const dangerRgb = pathStyle("LOST").rgb;
+        for (const c of conjunctions) {
+          const pulse = 0.5 + 0.5 * Math.sin(simTime * 8);
+          ctx.save();
+          ctx.strokeStyle = `rgba(${dangerRgb}, ${0.5 + 0.4 * pulse})`;
+          ctx.lineWidth = 2 * px;
+          ctx.setLineDash([4 * px, 4 * px]);
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, (10 + 4 * pulse) * px * 1.6, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.arc(c.debris.x, c.debris.y, 12 * px * 1.4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = `rgb(${dangerRgb})`;
+          ctx.font = `800 ${11 * px}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(`⚠ ${c.t.toFixed(1)}s`, c.x, c.y - 20 * px);
+          ctx.restore();
+        }
+      }
+
+      // ---- Supply crate (orbital rendezvous) ----
+      let crate = null;
+      const CRATE_BONUS = 150;
+      const CRATE_GRAB_R = 24;
+      const CRATE_MAX_REL_SPEED = 80;
+
+      function crateActive(r = round) {
+        if (mode === "school") return false;
+        if (mode === "sandbox") return true;
+        return r >= 2;
+      }
+
+      function spawnCrate(rng) {
+        crate = null;
+        if (!crateActive()) return;
+        const ang = rng() * Math.PI * 2;
+        const r = MOON_R + 200 + rng() * 110;
+        const v = Math.sqrt(GM / r);
+        crate = {
+          x: Math.cos(ang) * r,
+          y: Math.sin(ang) * r,
+          vx: -Math.sin(ang) * v,
+          vy: Math.cos(ang) * v,
+          orbitR: r,
+          angle: 0,
+          bumpCooldown: 0,
+          respawn: 0
+        };
+      }
+
+      function updateCrate(dt) {
+        if (!crate) return;
+        if (crate.respawn > 0) {
+          crate.respawn -= dt;
+          if (crate.respawn <= 0) spawnCrate(Math.random);
+          return;
+        }
+        const r = Math.hypot(crate.x, crate.y) || 1;
+        const k = -GM / (r * r * r);
+        crate.vx += crate.x * k * dt;
+        crate.vy += crate.y * k * dt;
+        crate.x += crate.vx * dt;
+        crate.y += crate.vy * dt;
+        crate.angle += dt * 0.8;
+        if (crate.bumpCooldown > 0) crate.bumpCooldown -= dt;
+
+        for (const g of goats) {
+          if (g.grounded) continue;
+          if (Math.hypot(g.x - crate.x, g.y - crate.y) > CRATE_GRAB_R) continue;
+          const rel = Math.hypot(g.vx - crate.vx, g.vy - crate.vy);
+          if (rel <= CRATE_MAX_REL_SPEED) {
+            g.fuel = 1;
+            roundStats.crates = (roundStats.crates || 0) + 1;
+            playSound("ring", 0.8);
+            for (let p = 0; p < 18; p++) {
+              const a = (p / 18) * Math.PI * 2;
+              spawnParticle(crate.x, crate.y, Math.cos(a) * 120, Math.sin(a) * 120, "#fb923c", 0.6, 3.5);
+            }
+            showToast(`📦 ${g.palette.name} grabbed the supply crate: full tank${isScoredMode() ? `, +${CRATE_BONUS}` : ""}!`);
+            unlockAchievement("rendezvous");
+            if (mode === "sandbox") {
+              crate.respawn = 15;
+            } else {
+              crate = null;
+            }
+            return;
+          } else if (crate.bumpCooldown <= 0 && g === goats[selectedGoatIdx]) {
+            crate.bumpCooldown = 2.5;
+            showToast(`📦 Too fast to grab (${Math.round(rel)} vs max ${CRATE_MAX_REL_SPEED}). Match the crate's speed!`);
+          }
+        }
+      }
+
+      function drawCrate() {
+        if (!crate || crate.respawn > 0) return;
+        const px = 1 / Math.max(0.3, camera.zoom);
+        ctx.save();
+        // its circular orbit, faintly, to help plan the rendezvous
+        ctx.strokeStyle = "rgba(251, 146, 60, 0.18)";
+        ctx.lineWidth = 1.2 * px;
+        ctx.setLineDash([3 * px, 7 * px]);
+        ctx.beginPath();
+        ctx.arc(0, 0, crate.orbitR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.translate(crate.x, crate.y);
+        ctx.rotate(crate.angle);
+        ctx.fillStyle = "#c2410c";
+        ctx.strokeStyle = "#fed7aa";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-8, -8, 16, 16, 2.5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#fdba74";
+        ctx.beginPath();
+        ctx.moveTo(-8, 0);
+        ctx.lineTo(8, 0);
+        ctx.moveTo(0, -8);
+        ctx.lineTo(0, 8);
+        ctx.stroke();
+        ctx.fillStyle = Math.floor(simTime * 2) % 2 ? "#fde68a" : "#f59e0b";
+        ctx.beginPath();
+        ctx.arc(0, -10, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // ---- Flight School: guided first flight ----
+      const IS_DESKTOP = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const KEY = IS_DESKTOP
+        ? { run: "Hold ▶ (or ◀)", pronk: "Press Space", boost: "Hold X" }
+        : { run: "Hold ▶ Right (or ◀ Left)", pronk: "Tap ⬆ Pronk", boost: "Hold 🔥 Boost" };
+      const SCHOOL_STEPS = [
+        { title: "Sprint", text: `${KEY.run} to run. Get up to SPD 180.` },
+        { title: "Pronk", text: `${KEY.pronk} to leap while you're running fast.` },
+        { title: "Coast to Ap", text: "Hands off! Coast up to the blue Ap ◆ marker, your highest point." },
+        {
+          title: "Burn",
+          get text() {
+            return `At the top, ${KEY.boost} with the nose level until your path turns ${safeWord()}.`;
+          }
+        },
+        { title: "Hold orbit", text: "You're in orbit! Hold it for 3 seconds." }
+      ];
+      let school = { step: 0, holdT: 0, done: false, msg: "", msgT: 0, burned: false };
+
+      function resetSchool() {
+        school = { step: 0, holdT: 0, done: false, msg: "", msgT: 0, burned: false };
+      }
+
+      // Feedback messages stay up for a few seconds even if the step moves on,
+      // so a player who lands at speed still sees why they were sent back.
+      function schoolMsg(msg, secs = 3.5) {
+        school.msg = msg;
+        school.msgT = secs;
+      }
+
+      function schoolSetStep(step, msg = "") {
+        school.step = step;
+        school.holdT = 0;
+        if (step === 3) school.burned = false;
+        if (msg) {
+          schoolMsg(msg);
+          playSound("bleat", 0.8);
+        } else if (step > 0) {
+          playSound("ring", 1 + step * 0.1);
+        }
+      }
+
+      function updateSchool(dt) {
+        const panel = document.getElementById("coach");
+        if (mode !== "school" || tutorialOpen || resultsOpen) {
+          if (panel.style.display !== "none") {
+            panel.style.display = "none";
+            measureLayout();
+          }
+          return;
+        }
+        if (panel.style.display !== "block") {
+          panel.style.display = "block";
+          coachHeight = 0;
+        }
+        const g = goats[selectedGoatIdx];
+        if (!g || school.done) {
+          renderCoach(g);
+          if (panel.offsetHeight !== coachHeight) {
+            coachHeight = panel.offsetHeight;
+            measureLayout();
+          }
+          return;
+        }
+        if (school.msgT > 0) {
+          school.msgT -= dt;
+          if (school.msgT <= 0) school.msg = "";
+        }
+        const speed = Math.hypot(g.vx, g.vy);
+        const rad = g.grounded ? 0 : (g.x * g.vx + g.y * g.vy) / (Math.hypot(g.x, g.y) || 1);
+        const lost = g.orbitState === "LOST" || g.orbitState === "ESCAPE";
+
+        switch (school.step) {
+          case 0:
+            if (g.grounded && speed >= 170) schoolSetStep(1);
+            break;
+          case 1:
+            if (!g.grounded && g.orbitEl && g.orbitEl.bound) schoolSetStep(2);
+            else if (g.grounded && speed < 120) schoolSetStep(0, school.msgT > 0 ? "" : "Keep running! Your speed dropped.");
+            break;
+          case 2:
+            if (g.grounded) schoolSetStep(0, "You landed before the top. Sprint and pronk again.");
+            else if (g.boosting && rad > 40) schoolMsg("Not yet! Wait until you reach the Ap marker.", 2);
+            else if (rad <= 15) schoolSetStep(3);
+            break;
+          case 3:
+            if (g.boosting) school.burned = true;
+            if (g.orbitState === "ORBIT") schoolSetStep(4);
+            else if (g.grounded)
+              schoolSetStep(
+                0,
+                school.burned
+                  ? "Not quite enough speed. Boost a little longer at the top next time."
+                  : "You need to Boost at the top! Sprint and pronk again."
+              );
+            else if (lost) schoolMsg("Too fast! Tap the other way to turn around, then boost to slow down.", 2);
+            break;
+          case 4:
+            if (g.orbitState !== "ORBIT") {
+              schoolSetStep(3, "You slipped out of orbit. Boost along your path to get it green again.");
+            } else {
+              school.holdT += dt;
+              if (school.holdT >= 3) {
+                school.done = true;
+                saveJSON("schoolDone", true);
+                playSound("lock");
+                unlockAchievement("graduate");
+              }
+            }
+            break;
+        }
+        renderCoach(g);
+        const h = panel.offsetHeight;
+        if (h !== coachHeight) {
+          coachHeight = h;
+          measureLayout();
+        }
+      }
+      let coachHeight = 0;
+
+      function renderCoach(g) {
+        const panel = document.getElementById("coach");
+        if (school.done) {
+          if (panel.dataset.state !== "done") {
+            panel.dataset.state = "done";
+            panel.innerHTML =
+              `<div class="coach-title">🎉 Flight School complete!</div>` +
+              `<div class="coach-text">You're a certified orbital goatherd. Now get the whole herd up there.</div>` +
+              `<div class="coach-actions"><button id="btnCoachHerd" class="btn-launch-primary">🚀 LAUNCH THE HERD</button>` +
+              `<button id="btnCoachAgain" class="btn-launch-secondary">↻ FLY AGAIN</button></div>`;
+            document.getElementById("btnCoachHerd").onclick = () => closeTutorialAndLaunch("herding");
+            document.getElementById("btnCoachAgain").onclick = () => {
+              resetSchool();
+              initWorld();
+            };
+          }
+          return;
+        }
+        panel.dataset.state = "steps";
+        const s = SCHOOL_STEPS[school.step];
+        let live = "";
+        if (g) {
+          if (school.step === 0) live = `SPD ${Math.round(Math.hypot(g.vx, g.vy))} / 180`;
+          if (school.step === 4) live = `${school.holdT.toFixed(1)} / 3.0 s`;
+        }
+        const dots = SCHOOL_STEPS.map((_, i) => `<span class="coach-dot ${i < school.step ? "done" : i === school.step ? "now" : ""}"></span>`).join("");
+        const html =
+          `<div class="coach-title">🎓 Step ${school.step + 1}/${SCHOOL_STEPS.length}: ${s.title}</div>` +
+          `<div class="coach-text">${s.text}</div>` +
+          (live ? `<div class="coach-live">${live}</div>` : "") +
+          (school.msg ? `<div class="coach-msg">${school.msg}</div>` : "") +
+          `<div class="coach-dots">${dots}</div>`;
+        if (panel.innerHTML !== html) panel.innerHTML = html;
+      }
+
+      // =========================================================================
       // 6. WORLD INITIALIZATION & TUTORIAL MODAL CONTROLS
       // =========================================================================
       function initWorld() {
@@ -2107,7 +2914,7 @@
         meteorTimer = 14;
         ufoTimer = 22;
 
-        const goatCount = isScoredMode() ? Math.min(2 + round, 6) : 4;
+        const goatCount = mode === "school" ? 1 : isScoredMode() ? Math.min(2 + round, 6) : 4;
         roundStats = freshStats(goatCount);
         buildObjective();
         for (let i = 0; i < goatCount; i++) {
@@ -2128,6 +2935,10 @@
           mossPatches.push(createMoss(a));
         }
 
+        const rngFor = (tag) => (mode === "daily" ? seededRng(`lunar-goats:${todayKey()}:${round}:${tag}`) : Math.random);
+        spawnCrate(rngFor("crate"));
+        spawnDebrisField(rngFor("debris"));
+
         updateTopHud();
       }
 
@@ -2144,6 +2955,13 @@
         herdBtn.textContent = resuming("herding") ? `▶ RESUME HERD (ROUND ${round})` : "🚀 LAUNCH HERD";
         dailyBtn.textContent = resuming("daily") ? `▶ RESUME DAILY (${round}/${DAILY_ROUNDS})` : "📅 DAILY CHALLENGE";
         sandboxBtn.textContent = resuming("sandbox") ? "▶ RESUME SANDBOX" : "🧪 SANDBOX";
+        const schoolBtn = document.getElementById("btnLaunchSchool");
+        const schoolDone = Boolean(loadJSON("schoolDone", false));
+        schoolBtn.textContent = resuming("school") && !school.done ? "▶ RESUME FLIGHT SCHOOL" : "🎓 FLIGHT SCHOOL";
+        schoolBtn.classList.toggle("recommended", !schoolDone);
+        document.getElementById("schoolNote").style.display = schoolDone ? "none" : "block";
+        saveRoster();
+        renderRoster();
 
         renderAchievementList();
         setupMenuBoards();
@@ -2164,13 +2982,14 @@
         mode = chosenMode;
 
         const btnMode = document.getElementById("btnMode");
-        btnMode.textContent = mode === "herding" ? "Herding" : mode === "daily" ? "Daily" : "Sandbox";
+        btnMode.textContent = { herding: "Herding", daily: "Daily", sandbox: "Sandbox", school: "School" }[mode] || "Herding";
         document.getElementById("btnSpawnToggle").style.display = mode === "sandbox" ? "inline-flex" : "none";
         document.getElementById("spawnDrawer").classList.remove("open");
         document.getElementById("fhTimeItem").classList.toggle("off", !isScoredMode());
         document.getElementById("fhDvItem").classList.toggle("off", !isScoredMode());
 
-        if (!hasStartedOnce || modeChanged) {
+        if (mode === "school" && (modeChanged || school.done)) resetSchool();
+        if (!hasStartedOnce || modeChanged || (mode === "school" && school.step === 0 && !school.done)) {
           round = 1;
           dailyTotal = 0;
           dailyRoundScores = [];
@@ -2187,6 +3006,8 @@
 
         if (isScoredMode()) {
           announceRound();
+        } else if (mode === "school") {
+          showToast("🎓 Flight School: follow the steps in the green panel");
         } else {
           showToast("🧪 Sandbox Mode: Tap + Spawn to add goats & props!");
         }
@@ -2880,6 +3701,7 @@
                   removeGoatAt(gi);
                   removed = true;
                   roundStats.abducted += 1;
+                  rosterEntry(g.palette.name).abducted += 1;
                   returningAbductees.push({ timer: 15.0 });
                   ufo.fleeing = true;
                   ufo.vx = Math.cos(ufo.theta) * 480;
@@ -2935,6 +3757,8 @@
             const lostName = g.palette.name;
             removeGoatAt(gi);
             roundStats.lost += 1;
+            rosterEntry(lostName).lost += 1;
+            saveRoster();
             const replacement = createGoat(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.6, false, false);
             goats.push(replacement);
             showToast(`🌌 ${lostName} Drifted Into Deep Space! Replacement Dropped.`);
@@ -2943,6 +3767,7 @@
 
           const prevState = g.orbitState;
           classifyOrbit(g);
+          trackGoatLaps(g);
 
           if (!tutorialOpen) {
             // Achievements tied to reaching orbit
@@ -3056,6 +3881,11 @@
           }
         }
 
+        if (!tutorialOpen) {
+          updateDebris(dt);
+          updateCrate(dt);
+        }
+
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
           p.x += p.vx * dt;
@@ -3094,6 +3924,10 @@
       function measureLayout() {
         const h = window.innerHeight;
         layoutCache.topBarH = document.getElementById("topHudBar").offsetHeight || 42;
+        const coachEl = document.getElementById("coach");
+        if (coachEl && coachEl.style.display !== "none") {
+          layoutCache.topBarH = Math.max(layoutCache.topBarH, coachEl.getBoundingClientRect().bottom + 4);
+        }
         let reserve = 14;
         const touchEl = document.getElementById("touchControls");
         if (touchEl && window.getComputedStyle(touchEl).display !== "none") {
@@ -3134,6 +3968,10 @@
           if (!ring.collected) maxExtent = Math.max(maxExtent, Math.hypot(ring.x, ring.y) + ring.radius + 30);
         }
         if (objective.type === "band") maxExtent = Math.max(maxExtent, MOON_R + objective.bandHi + 40);
+        const flyer = goats[selectedGoatIdx];
+        if (crate && crate.respawn <= 0 && flyer && !flyer.grounded) {
+          maxExtent = Math.max(maxExtent, Math.hypot(crate.x, crate.y) + 30);
+        }
 
         const minHalfDim = Math.min(w * 0.47, clearHeight * 0.47);
         const autoFitZoom = Math.max(0.24, Math.min(1.15, minHalfDim / maxExtent));
@@ -3378,22 +4216,19 @@
           if (g.grounded || g.trajectory.length < 2) continue;
 
           const isSelected = i === selectedGoatIdx;
-          let color = "rgba(251, 191, 36, 0.55)"; // Amber = Sub-orbital
-          if (g.orbitState === "ORBIT" && !goatQualifies(g)) {
-            // Safe orbit, but outside the altitude band
-            color = isSelected ? "rgba(56, 189, 248, 0.92)" : "rgba(56, 189, 248, 0.45)";
-          } else if (g.orbitState === "ORBIT") {
-            color = isSelected ? "rgba(52, 211, 153, 0.92)" : "rgba(52, 211, 153, 0.45)";
-          } else if (g.orbitState === "ESCAPE" || g.orbitState === "LOST") {
-            color = isSelected ? "rgba(251, 113, 133, 0.9)" : "rgba(251, 113, 133, 0.45)";
-          } else if (isSelected) {
-            color = "rgba(251, 191, 36, 0.88)";
-          }
+          // Path state -> style (colour + line pattern; see PATH_STYLES)
+          let styleKey = "SUBORBITAL";
+          if (g.orbitState === "ORBIT") styleKey = goatQualifies(g) ? "ORBIT" : "BAND_OUT";
+          else if (g.orbitState === "ESCAPE" || g.orbitState === "LOST") styleKey = "LOST";
+          const st = pathStyle(styleKey);
+          const alpha = isSelected ? 0.92 : styleKey === "SUBORBITAL" ? 0.55 : 0.45;
 
           ctx.save();
-          ctx.strokeStyle = color;
-          ctx.lineWidth = (isSelected ? 2.5 : 1.5) / Math.max(0.5, camera.zoom);
-          ctx.setLineDash([6, 6]);
+          ctx.strokeStyle = `rgba(${st.rgb}, ${alpha})`;
+          const lineW = (isSelected ? 2.5 : 1.5) / Math.max(0.5, camera.zoom);
+          ctx.lineWidth = colorBlindMode ? lineW * 1.25 : lineW;
+          const dashScale = 1 / Math.max(0.5, camera.zoom);
+          ctx.setLineDash(st.dash.map((d) => d * dashScale));
           ctx.beginPath();
           if (g.trajectoryClosed) {
             ctx.moveTo(g.trajectory[0].x, g.trajectory[0].y);
@@ -3426,7 +4261,7 @@
           markers.push({ label: "Ap", r: el.ap, ang: peAng + Math.PI, color: "#38bdf8" });
         }
         if (el.pe > clearR) {
-          markers.push({ label: "Pe", r: el.pe, ang: peAng, color: "#34d399" });
+          markers.push({ label: "Pe", r: el.pe, ang: peAng, color: colorBlindMode ? "#f8fafc" : "#34d399" });
         }
 
         ctx.save();
@@ -3816,6 +4651,8 @@
         drawTrajectories();
         drawMoon();
         drawProps();
+        drawCrate();
+        drawDebris();
         drawGoats();
         drawUfo();
         drawParticlesAndRings();
@@ -3889,7 +4726,7 @@
         if (!active) return;
         const alt = Math.max(0, Math.round(Math.hypot(active.x, active.y) - MOON_R));
         const vel = Math.round(Math.hypot(active.vx, active.vy));
-        const stateColor = STATE_COLORS[active.orbitState] || "#f8fafc";
+        const stateColor = stateColorFor(active.orbitState);
 
         if (tutorialOpen) return;
 
@@ -3908,10 +4745,10 @@
         setText("fhAlt", `${alt}`);
         setText("fhSpd", `${vel}`);
         setText("fhAp", apText);
-        setStyle("fhAp", "color", apText === "LOST" || apText === "∞" ? "#fb7185" : "#f8fafc");
+        setStyle("fhAp", "color", apText === "LOST" || apText === "∞" ? stateColorFor("LOST") : "#f8fafc");
         setText("fhPe", peText);
         const peSafe = el && el.bound && el.pe > MAX_TERRAIN_R + (active.isKid ? 11 : 17);
-        setStyle("fhPe", "color", peSafe ? "#34d399" : "#fbbf24");
+        setStyle("fhPe", "color", peSafe ? stateColorFor("ORBIT") : stateColorFor("SUBORBITAL"));
         setText("fhFuel", `${Math.round(active.fuel * 100)}%`);
         setStyle("fhFuel", "color", active.fuel > 0.25 ? "#f8fafc" : "#fb7185");
         const fine = isFineThrust();
@@ -3991,7 +4828,10 @@
       // Release everything if the window loses focus mid-press (prevents stuck keys)
       window.addEventListener("blur", clearHeldInputs);
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) clearHeldInputs();
+        if (document.hidden) {
+          clearHeldInputs();
+          saveRoster();
+        }
       });
 
       // Desktop Click on Goat to Select & Double-Click Sky to Reset Auto-Fit Zoom
@@ -4102,6 +4942,8 @@
       const btnLevel = document.getElementById("btnLevel");
       function setLevelAssist(on, announce) {
         levelAssist = on;
+        const lvlBox = document.getElementById("setLevel");
+        if (lvlBox) lvlBox.checked = on;
         btnLevel.classList.toggle("on", on);
         btnLevel.setAttribute("aria-pressed", String(on));
         saveJSON("levelAssist", on);
@@ -4133,6 +4975,10 @@
       document.getElementById("btnLaunchHerd").addEventListener("click", () => closeTutorialAndLaunch("herding"));
       document.getElementById("btnLaunchSandbox").addEventListener("click", () => closeTutorialAndLaunch("sandbox"));
       document.getElementById("btnLaunchDaily").addEventListener("click", () => closeTutorialAndLaunch("daily"));
+      document.getElementById("btnLaunchSchool").addEventListener("click", () => closeTutorialAndLaunch("school"));
+      document.getElementById("setColorBlind").addEventListener("change", (e) => setColorBlind(e.target.checked));
+      document.getElementById("setLevel").addEventListener("change", (e) => setLevelAssist(e.target.checked, false));
+      setColorBlind(colorBlindMode);
       document.getElementById("btnHelp").addEventListener("click", () => {
         if (!resultsOpen) openTutorialOverlay();
       });
@@ -4226,6 +5072,9 @@
       initWorld();
       renderAchievementList();
       setupMenuBoards();
+      renderRoster();
+      if (!loadJSON("schoolDone", false)) document.getElementById("btnLaunchSchool").classList.add("recommended");
+      else document.getElementById("schoolNote").style.display = "none";
       resizeCanvas();
 
       // Fixed-timestep loop: physics always advances in 1/120 s steps, so orbits
@@ -4249,6 +5098,7 @@
         if (steps === MAX_STEPS_PER_FRAME) accumulator = 0; // drop backlog after a hitch
 
         for (const g of goats) buildTrajectory(g);
+        updateSchool(resultsOpen || tutorialOpen ? 0 : Math.min(frameDt, 0.1));
         updateTopHud();
         updateCamera(Math.max(frameDt, 0.001));
         render();
