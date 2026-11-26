@@ -830,7 +830,8 @@
     }
 
     /* ---- Round results ---- */
-    #resultsOverlay {
+    #resultsOverlay,
+    #sssBanner {
       position: fixed;
       inset: 0;
       z-index: 55;
@@ -843,8 +844,62 @@
       padding: 12px;
     }
 
-    #resultsOverlay.open {
+    #resultsOverlay.open,
+    #sssBanner.open {
       display: flex;
+    }
+
+    #sssBanner {
+      background: rgba(3, 6, 17, 0.35);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      align-items: flex-end;
+    }
+
+    .sss-card {
+      max-width: 400px;
+      border-color: rgba(250, 204, 21, 0.55) !important;
+    }
+
+    /* Meme finale: hide every HUD control so the frame is clean */
+    body.cutscene #topHudBar,
+    body.cutscene #touchControls,
+    body.cutscene #flightHud,
+    body.cutscene #coach,
+    body.cutscene #spawnDrawer,
+    body.cutscene #toastBanner {
+      display: none !important;
+    }
+
+    .party-row {
+      display: none;
+      width: 100%;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.75);
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+
+    #spawnDrawer.party .party-row {
+      display: flex;
+    }
+
+    .party-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .party-row input[type="range"] {
+      width: 110px;
+    }
+
+    .menu-locked {
+      opacity: 0.55;
     }
 
     .results-card {
@@ -1170,8 +1225,15 @@
     <button class="pill-btn" data-spawn="boulder">+ Boulder</button>
     <button class="pill-btn" data-spawn="canister">+ O2 Tank</button>
     <button class="pill-btn" data-spawn="moss">+ Moon-Moss</button>
+    <button class="pill-btn" data-spawn="sheep">+ Sheep</button>
+    <button class="pill-btn" data-spawn="copper">+ Copper</button>
+    <button class="pill-btn" data-spawn="bale">+ Hay Bale</button>
     <button class="pill-btn" data-spawn="ufo">🛸 Summon UFO</button>
     <button class="pill-btn" data-spawn="reset">↺ Reset</button>
+    <div class="party-row">
+      <label>🌍 Gravity <input id="partyGravity" type="range" min="0.2" max="2" step="0.1" value="1"> <b id="partyGravityVal">1.0x</b></label>
+      <label>🐑 Herd <input id="partyHerd" type="range" min="0" max="40" step="1" value="18"> <b id="partyHerdVal">18</b></label>
+    </div>
   </div>
 
   <!-- Toast Event Notification -->
@@ -1206,6 +1268,8 @@
         <button id="btnLaunchHerd" class="btn-launch-primary">🚀 LAUNCH HERD</button>
         <button id="btnLaunchDaily" class="btn-launch-secondary">📅 DAILY CHALLENGE</button>
         <button id="btnLaunchStampede" class="btn-launch-secondary">🐐 STAMPEDE (ENDLESS)</button>
+        <button id="btnLaunchSss" class="btn-launch-secondary">🐑 FINAL LEVEL: ENTERING THE SSS</button>
+        <button id="btnLaunchAfterparty" class="btn-launch-secondary" style="display:none">🎉 SSS AFTERPARTY SANDBOX</button>
         <button id="btnLaunchSchool" class="btn-launch-secondary">🎓 FLIGHT SCHOOL</button>
         <button id="btnLaunchSandbox" class="btn-launch-secondary subtle">🧪 SANDBOX</button>
       </div>
@@ -1213,6 +1277,7 @@
       <div id="dailyBestLine" class="menu-note">📅 Today's Daily Challenge: not played yet</div>
       <div id="streakLine" class="menu-note streak-line" style="display:none"></div>
       <div id="stampedeBestLine" class="menu-note" style="display:none"></div>
+      <div id="sssNote" class="menu-note" style="display:none"></div>
 
       <details class="menu-section">
         <summary>🎮 Controls</summary>
@@ -1247,6 +1312,9 @@
           <li><strong>📦 Supply crates (round 2+):</strong> match the crate's orbit and drift into it slowly (under 80 relative speed) for a full tank and +150 points. To catch up with something ahead of you, slow down: a lower orbit is faster.</li>
           <li><strong>🛰️ Space debris (round 5+):</strong> a pulsing ⚠ marker shows where a collision would happen and how soon. A short burn changes your path and dodges it.</li>
           <li><strong>🐐 Stampede:</strong> one endless run. Each round adds a goat and tightens par by 4%. You have 3 ❤️ herd hearts: every goat lost or abducted costs one. Lose all three and the run is over. No retries!</li>
+          <li><strong>🐑 Sheep (round 2+):</strong> they stay on the ground and flock. Clustered sheep are nearly immovable; a lone sheep panics, and a slam near it makes it curl into a rolling woolball. Sheep grazing moss earn steady forage points. If 3+ sheep outnumber you at a moss patch, they'll ram you along the ground.</li>
+          <li><strong>🟠 Copper Mineral:</strong> a goat that touches it gets a speed and jump boost. A sheep that eats it gets Copper Toxicity, so grab it first.</li>
+          <li><strong>🌵 Spire-shrubs:</strong> fly through the tip of a shrub on a crater rim for a +75 trick-shot bonus.</li>
           <li><strong>🎖️ Goat ranks:</strong> every orbit and every round cleared earns a goat XP. Goats rank up from Kid to Billy, Astronaut, Commander and Astro-Goat, and get new gear at each rank.</li>
           <li><strong>Hazards arrive later:</strong> meteor strikes start in round 3, UFO abductions in round 4 and space debris in round 5 (meteors and UFO arrive in rounds 2 and 3 of the Daily). Headbutt the UFO to stop it.</li>
         </ul>
@@ -1276,6 +1344,22 @@
       </details>
 
       <div class="menu-footer">Live readout during play: <b>ALT · SPD · Ap · Pe · FUEL · THR · NOSE</b></div>
+    </div>
+  </div>
+
+  <!-- SSS finale banner (after the "Always has been" cutscene) -->
+  <div id="sssBanner" role="dialog" aria-modal="true" aria-labelledby="sssHeading">
+    <div class="tutorial-card results-card sss-card">
+      <div class="tut-header">
+        <div class="tut-badge">Level Final: Entering the SSS</div>
+        <h1 id="sssHeading">Mission Complete — SSS Honorary Member</h1>
+      </div>
+      <div id="sssBannerStats" class="res-grid"></div>
+      <div id="sssBannerAch" class="res-ach"></div>
+      <div class="tut-actions">
+        <button id="btnAfterparty" class="btn-launch-primary">🎉 SSS AFTERPARTY SANDBOX MODE</button>
+        <button id="btnSssMenu" class="btn-launch-secondary">🏠 MENU</button>
+      </div>
     </div>
   </div>
 
@@ -1334,7 +1418,8 @@
       const ctx = canvas.getContext("2d");
 
       const MOON_R = 275;
-      const GM = 38000000;
+      const GM_BASE = 38000000;
+      let GM = GM_BASE; // the Afterparty sandbox can scale gravity
       const SURFACE_G = GM / (MOON_R * MOON_R);
       const ORBIT_SPEED_SURFACE = Math.sqrt(GM / MOON_R);
       const ESCAPE_SPEED_SURFACE = Math.sqrt((2 * GM) / MOON_R);
@@ -1745,6 +1830,11 @@
           trajectoryClosed: false,
           slingshotTimer: 0,
           slingshotFromOrbit: false,
+          copperTimer: 0, // Copper Mineral speed/jump boost
+          slamTimer: 0, // rear-and-slam: countdown from the rear-up hop to the slam
+          slamming: false,
+          carrying: null, // SSS hay bale being towed
+          sheepBumpCd: 0,
           palette: pal
         };
       }
@@ -1826,6 +1916,7 @@
         herding: { meteors: 3, ufo: 4, debris: 5 },
         daily: { meteors: 2, ufo: 3 }, // no debris in the 3-round Daily
         stampede: { meteors: 2, ufo: 3, debris: 4 },
+        sss: { meteors: Infinity, ufo: Infinity, debris: Infinity },
         school: { meteors: Infinity, ufo: Infinity, debris: Infinity }
       };
       function meteorsActive(r = round) {
@@ -2059,7 +2150,11 @@
       }
 
       function freshStats(goatCount) {
-        return { time: 0, dv: 0, lost: 0, abducted: 0, headbutts: 0, goats: goatCount, crates: 0, debrisHits: 0 };
+        return { time: 0, dv: 0, lost: 0, abducted: 0, headbutts: 0, goats: goatCount, crates: 0, debrisHits: 0, forage: 0, tricks: 0 };
+      }
+
+      function isSandboxLike() {
+        return mode === "sandbox" || mode === "afterparty";
       }
 
       function isScoredMode() {
@@ -2179,7 +2274,10 @@
         { id: "streak3", icon: "🔥", name: "On a Roll", desc: "Finish the Daily 3 days in a row" },
         { id: "streak7", icon: "📆", name: "Goat Week", desc: "Finish the Daily 7 days in a row" },
         { id: "stampede8", icon: "🐐", name: "Thundering Herd", desc: "Clear 8 rounds in one Stampede" },
-        { id: "commander", icon: "🎖️", name: "Field Promotion", desc: "Rank a goat up to Commander" }
+        { id: "commander", icon: "🎖️", name: "Field Promotion", desc: "Rank a goat up to Commander" },
+        { id: "woolball", icon: "🧶", name: "Woolball", desc: "Startle a lone sheep into a rolling woolball" },
+        { id: "copper", icon: "🟠", name: "Copper Kid", desc: "Grab a Copper Mineral boost with a goat" },
+        { id: "sss", icon: "🐑", name: "SSS Honorary Member", desc: "Complete Level Final: Entering the SSS" }
       ];
       let unlockedAch = loadJSON("achievements", {});
       let newlyUnlocked = [];
@@ -2281,7 +2379,7 @@
       function stampedeShareText() {
         return [
           `🐐 Lunar Goats Stampede`,
-          `Reached round ${stampede.cleared + 1} · ${stampede.total.toLocaleString()} pts · ${stampede.stars}⭐`,
+          `Cleared ${stampede.cleared} round${stampede.cleared === 1 ? "" : "s"} · ${stampede.total.toLocaleString()} pts · ${stampede.stars}⭐`,
           gameUrl()
         ].filter(Boolean).join("\n");
       }
@@ -2341,7 +2439,9 @@
               Math.max(0, parDv - roundStats.dv) * SCORE_PER_DV_UNDER_PAR -
               roundStats.lost * LOST_PENALTY -
               roundStats.abducted * ABDUCT_PENALTY +
-              (roundStats.crates || 0) * CRATE_BONUS
+              (roundStats.crates || 0) * CRATE_BONUS +
+              Math.round(roundStats.forage || 0) +
+              (roundStats.tricks || 0) * SHRUB_TRICK_BONUS
           )
         );
         return { parDv, parTime, underTime, underDv, stars, score };
@@ -2361,6 +2461,7 @@
         if (type === "band") unlockAchievement("bandleader");
         if (type === "rings") unlockAchievement("ringmaster");
         if (round >= 3 && roundStats.lost === 0 && roundStats.abducted === 0) unlockAchievement("nobodyleft");
+        if ((mode === "herding" || mode === "stampede") && round >= SSS_UNLOCK_ROUND) unlockSss();
 
         let bestText = "";
         let isNewBest = false;
@@ -2413,7 +2514,9 @@
           row("Goats lost", `${roundStats.lost}`, roundStats.lost === 0) +
           row("Abducted", `${roundStats.abducted}`, roundStats.abducted === 0) +
           (crateActive() ? row("Supply crate", roundStats.crates ? `✓ +${roundStats.crates * CRATE_BONUS}` : "missed", roundStats.crates > 0) : "") +
-          (debrisActive() ? row("Debris hits", `${roundStats.debrisHits || 0}`, !roundStats.debrisHits) : "");
+          (debrisActive() ? row("Debris hits", `${roundStats.debrisHits || 0}`, !roundStats.debrisHits) : "") +
+          (roundStats.forage >= 1 ? row("🐑 Sheep forage", `+${Math.round(roundStats.forage)}`, true) : "") +
+          (roundStats.tricks ? row("🌵 Shrub trick shots", `+${roundStats.tricks * SHRUB_TRICK_BONUS}`, true) : "");
 
         document.getElementById("resScore").innerHTML =
           `<div class="res-points">${res.score} pts</div><div class="res-best ${isNewBest ? "new" : ""}">${bestText}</div>`;
@@ -3014,8 +3117,8 @@
       const CRATE_MAX_REL_SPEED = 80;
 
       function crateActive(r = round) {
-        if (mode === "school") return false;
-        if (mode === "sandbox") return true;
+        if (mode === "school" || mode === "sss") return false;
+        if (isSandboxLike()) return true;
         return r >= 2;
       }
 
@@ -3067,7 +3170,7 @@
             }
             showToast(`📦 ${g.palette.name} grabbed the supply crate: full tank${isScoredMode() ? `, +${CRATE_BONUS}` : ""}!`);
             unlockAchievement("rendezvous");
-            if (mode === "sandbox") {
+            if (isSandboxLike()) {
               crate.respawn = 15;
             } else {
               crate = null;
@@ -3291,12 +3394,20 @@
         ufoTimer = 22;
 
         const goatCount =
-          mode === "school" ? 1 : mode === "stampede" ? Math.min(2 + round, STAMPEDE_MAX_GOATS) : isScoredMode() ? Math.min(2 + round, 6) : 4;
+          mode === "school"
+            ? 1
+            : mode === "sss"
+              ? 3
+              : mode === "stampede"
+                ? Math.min(2 + round, STAMPEDE_MAX_GOATS)
+                : isScoredMode()
+                  ? Math.min(2 + round, 6)
+                  : 4;
         roundStats = freshStats(goatCount);
         buildObjective();
         for (let i = 0; i < goatCount; i++) {
           const angle = -Math.PI * 0.5 + (i - (goatCount - 1) / 2) * 0.38;
-          const isKid = mode === "sandbox" && i === goatCount - 1;
+          const isKid = isSandboxLike() && i === goatCount - 1;
           goats.push(createGoat(angle, isKid, false));
         }
         selectedGoatIdx = 0;
@@ -3316,6 +3427,15 @@
         spawnCrate(rngFor("crate"));
         spawnDebrisField(rngFor("debris"));
 
+        // Expansion: spire-shrubs, sheep, copper, and the SSS level / Afterparty
+        buildSpireShrubs();
+        bales = [];
+        sss = null;
+        for (const g of goats) g.carrying = null;
+        if (mode === "sss") initSss();
+        else if (mode === "afterparty") initAfterparty();
+        else spawnRoundSheep();
+
         updateTopHud();
       }
 
@@ -3331,6 +3451,23 @@
         const resuming = (m) => hasStartedOnce && mode === m;
         herdBtn.textContent = resuming("herding") ? `▶ RESUME HERD (ROUND ${round})` : "🚀 LAUNCH HERD";
         dailyBtn.textContent = resuming("daily") ? `▶ RESUME DAILY (${round}/${DAILY_ROUNDS})` : "📅 DAILY CHALLENGE";
+        const sssBtn = document.getElementById("btnLaunchSss");
+        const unlocked = sssUnlocked();
+        sssBtn.textContent = resuming("sss") && !cutscene
+          ? "▶ RESUME: ENTERING THE SSS"
+          : unlocked
+            ? "🐑 FINAL LEVEL: ENTERING THE SSS"
+            : "🔒 FINAL LEVEL: ENTERING THE SSS";
+        sssBtn.classList.toggle("menu-locked", !unlocked);
+        const sssNote = document.getElementById("sssNote");
+        const sssBest = loadJSON("best.sss", null);
+        sssNote.textContent = !unlocked
+          ? `🔒 Clear Herd or Stampede round ${SSS_UNLOCK_ROUND} to unlock the final level.`
+          : sssBest
+            ? `🐑 SSS best: ${sssBest.score.toLocaleString()} pts`
+            : "";
+        sssNote.style.display = sssNote.textContent ? "block" : "none";
+        document.getElementById("btnLaunchAfterparty").style.display = afterpartyUnlocked() ? "" : "none";
         document.getElementById("btnLaunchStampede").textContent =
           resuming("stampede") && !stampede.over ? `▶ RESUME STAMPEDE (ROUND ${round})` : "🐐 STAMPEDE (ENDLESS)";
         sandboxBtn.textContent = resuming("sandbox") ? "▶ RESUME SANDBOX" : "🧪 SANDBOX";
@@ -3356,13 +3493,25 @@
       }
 
       function closeTutorialAndLaunch(chosenMode) {
+        if (chosenMode === "sss" && !sssUnlocked()) {
+          const note = document.getElementById("sssNote");
+          note.textContent = `🔒 Locked: clear Herd or Stampede round ${SSS_UNLOCK_ROUND} first.`;
+          note.style.display = "block";
+          return;
+        }
         ensureAudio();
         const modeChanged = mode !== chosenMode;
         mode = chosenMode;
 
         const btnMode = document.getElementById("btnMode");
-        btnMode.textContent = { herding: "Herding", daily: "Daily", stampede: "Stampede", sandbox: "Sandbox", school: "School" }[mode] || "Herding";
-        document.getElementById("btnSpawnToggle").style.display = mode === "sandbox" ? "inline-flex" : "none";
+        btnMode.textContent =
+          { herding: "Herding", daily: "Daily", stampede: "Stampede", sandbox: "Sandbox", school: "School", sss: "SSS", afterparty: "Afterparty" }[mode] ||
+          "Herding";
+        applyGravity();
+        const spawnToggle = document.getElementById("btnSpawnToggle");
+        spawnToggle.style.display = isSandboxLike() ? "inline-flex" : "none";
+        spawnToggle.textContent = mode === "afterparty" ? "🎛 Party" : "+ Spawn";
+        document.getElementById("spawnDrawer").classList.toggle("party", mode === "afterparty");
         document.getElementById("spawnDrawer").classList.remove("open");
         document.getElementById("fhTimeItem").classList.toggle("off", !isScoredMode());
         document.getElementById("fhDvItem").classList.toggle("off", !isScoredMode());
@@ -3394,6 +3543,10 @@
           if (mode === "stampede" && round === 1) {
             setTimeout(() => showToast(`🐐 Stampede! ${heartsText()} Lose a goat, lose a heart.`), 3000);
           }
+        } else if (mode === "sss") {
+          showToast("🐑 Entering the SSS: tow 3 hay bales into the airlock. Don't knock sheep into space!");
+        } else if (mode === "afterparty") {
+          showToast("🎉 SSS Afterparty: tap 🎛 Party for gravity and herd sliders");
         } else if (mode === "school") {
           showToast("🎓 Flight School: follow the steps in the green panel");
         } else {
@@ -3567,7 +3720,8 @@
           const alienMult = g.alienMutated ? 1.28 : 1.0;
           const kidMult = g.isKid ? 1.12 : 1.0;
 
-          const radialImpulse = 265 * chainMult * alienMult * kidMult;
+          const copperMult = g.copperTimer > 0 ? 1.2 : 1.0;
+          const radialImpulse = 265 * chainMult * alienMult * kidMult * copperMult;
           const forwardLunge = 42 * g.facing;
 
           g.vx += rx * radialImpulse + tx * forwardLunge;
@@ -3645,11 +3799,16 @@
         const byPlayer = g === goats[selectedGoatIdx];
         if (byPlayer) roundStats.headbutts += 1;
 
-        // Forward lunge only when hooves are on the ground; airborne headbutts
-        // just strike whatever is in reach (plus normal collision recoil).
+        // On the ground a goat rears up (a short upward hop) and then slams down
+        // in a forward arc (see slamTimer in stepPhysics) for high knockback.
+        // Airborne headbutts just strike whatever is in reach.
         if (g.grounded) {
-          g.vx += dirX * 155;
-          g.vy += dirY * 155;
+          const rx = Math.cos(theta);
+          const ry = Math.sin(theta);
+          g.vx += rx * 150 + dirX * 95;
+          g.vy += ry * 150 + dirY * 95;
+          g.grounded = false;
+          g.slamTimer = 0.2;
         }
         playSound("ram");
 
@@ -3694,6 +3853,8 @@
             }
           }
         }
+
+        headbuttSheep(g, hx, hy, dirX, dirY, reach);
 
         for (const b of boulders) {
           if (Math.hypot(b.x - hx, b.y - hy) < reach + b.radius) {
@@ -3795,6 +3956,1064 @@
         ufo.vx = (ufo.x >= 0 ? 1 : -1) * 420;
         ufo.vy = -260;
         showToast(reasonMsg);
+      }
+
+      // =========================================================================
+      // 8b. SHEEP: SURFACE BOIDS FLOCKING, RAM DASH, PANIC, STARTLED CURL
+      // =========================================================================
+      // Sheep are ground-bound herd animals. They move along the planetoid's
+      // surface tangent and flock with boids rules measured in surface angle:
+      //  - cohesion pulls each sheep toward its neighbours' centre of mass
+      //  - separation keeps a little personal space
+      //  - alignment matches the neighbours' walking speed
+      // Clustered sheep combine their mass (hard to shove); isolated sheep panic.
+      const SHEEP_HALF_H = 12;
+      const SHEEP_NEIGHBOR_ARC = 0.4; // rad: neighbours that count for the flock
+      const SHEEP_CLOSE_ARC = 0.12; // rad: neighbours that add their mass
+      const SHEEP_PERSONAL_ARC = 0.065; // rad: separation distance
+      const SHEEP_WALK = 62;
+      const SHEEP_PANIC_SPEED = 150;
+      const SHEEP_RAM_SPEED = 330;
+      const SHEEP_HOP = 70; // goats pronk at 265
+      const SHEEP_GROUND_FRICTION = 0.06; // velocity kept per second (goats: 0.015 idle)
+      const MEGAFLOCK_MASS_THRESHOLD = 5; // above this a flock bounces goats away
+      const COPPER_BOOST_TIME = 8;
+      const COPPER_TOXIC_TIME = 9;
+      const SHRUB_TRICK_BONUS = 75;
+      const FORAGE_PTS_PER_SEC = 4; // per grazing sheep
+      const WOOL_TINTS = ["#f8fafc", "#f1f5f9", "#e7e5e4", "#fef3c7", "#e2e8f0"];
+
+      let sheep = [];
+      let copperPickups = [];
+      let copperTimer = 12;
+      let spireShrubs = [];
+
+      function createSheep(theta, opts = {}) {
+        const r = getTerrainRadius(theta) + SHEEP_HALF_H;
+        return {
+          x: Math.cos(theta) * r,
+          y: Math.sin(theta) * r,
+          vx: 0,
+          vy: 0,
+          grounded: true,
+          facing: Math.random() < 0.5 ? 1 : -1,
+          wool: WOOL_TINTS[Math.floor(Math.random() * WOOL_TINTS.length)],
+          mega: Boolean(opts.mega), // part of the SSS megablock flock
+          mass: 1,
+          panic: false,
+          panicJitter: 0,
+          panicTimer: 0,
+          ramTimer: 0,
+          ramCooldown: 3 + Math.random() * 4,
+          ramDir: 0,
+          curlTimer: 0,
+          rollAngle: 0,
+          toxicTimer: 0,
+          hopTimer: 2 + Math.random() * 6,
+          grazing: false,
+          legPhase: Math.random() * Math.PI * 2,
+          bumpCooldown: 0
+        };
+      }
+
+      // Shove a sheep. Clustered sheep share the blow across the flock's mass;
+      // a panicked loner takes 1.5x. Returns the velocity change applied.
+      function knockSheep(s, dirX, dirY, dv) {
+        const k = (s.panic ? 1.5 : 1) / Math.max(1, s.mass);
+        const applied = dv * k;
+        s.vx += dirX * applied;
+        s.vy += dirY * applied;
+        if (applied > 55) s.grounded = false;
+        return applied;
+      }
+
+      // Startled Freeze: the sheep curls into a woolly ball and rolls along the curve
+      function startleSheep(s, awayFromX, awayFromY) {
+        if (s.curlTimer > 0 || s.mega) return;
+        const theta = Math.atan2(s.y, s.x);
+        const n = getSurfaceNormal(theta);
+        const side = Math.sign((s.x - awayFromX) * n.tx + (s.y - awayFromY) * n.ty) || 1;
+        s.curlTimer = 2.4;
+        s.ramTimer = 0;
+        const roll = 190 * side;
+        s.vx = n.tx * roll;
+        s.vy = n.ty * roll;
+        playSound("bleat", 1.7);
+        for (let i = 0; i < 6; i++) {
+          spawnParticle(s.x, s.y, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90, "#f8fafc", 0.5, 3.2);
+        }
+        unlockAchievement("woolball");
+      }
+
+      // A goat that runs into the SSS megablock flock bounces harmlessly back
+      // into a low circular orbit (and drops any hay bale it was towing).
+      function bounceGoatToLowOrbit(g) {
+        if (g.sheepBumpCd > 0) return;
+        g.sheepBumpCd = 1.2;
+        const theta = Math.atan2(g.y, g.x);
+        const r0 = Math.max(Math.hypot(g.x, g.y), MAX_TERRAIN_R + 70);
+        const v = Math.sqrt(GM / r0);
+        const tx = -Math.sin(theta);
+        const ty = Math.cos(theta);
+        const dir = g.facing >= 0 ? 1 : -1;
+        g.x = Math.cos(theta) * r0;
+        g.y = Math.sin(theta) * r0;
+        g.vx = tx * v * dir;
+        g.vy = ty * v * dir;
+        g.grounded = false;
+        g.faintTimer = 0;
+        g.slamTimer = 0;
+        g.slamming = false;
+        if (g.carrying) dropBale(g);
+        screenShake = Math.max(screenShake, 5);
+        playSound("pronk", 0.7);
+        spawnRadioRing(g.x, g.y, "#f8fafc", 70);
+        if (g === goats[selectedGoatIdx]) showToast("🐑 BOING! The SSS flock bounced you back into low orbit");
+      }
+
+      // Precomputed per frame: each sheep's surface angle
+      function sheepThetas() {
+        return sheep.map((s) => Math.atan2(s.y, s.x));
+      }
+
+      function goatsNearMoss(m, arc) {
+        let n = 0;
+        for (const g of goats) {
+          if (g.grounded && Math.abs(normalizeAngle(Math.atan2(g.y, g.x) - m.theta)) < arc) n++;
+        }
+        return n;
+      }
+
+      function updateSheep(dt) {
+        if (!sheep.length) return;
+        const th = sheepThetas();
+        const R = MOON_R;
+
+        // Social hierarchy at each food patch: goats emit a dominance aura and
+        // sheep yield, unless the sheep outnumber the goats at least 3-to-1.
+        const mossContest = mossPatches.map((m) => {
+          const g = goatsNearMoss(m, 0.2);
+          let sCount = 0;
+          for (let i = 0; i < sheep.length; i++) {
+            if (Math.abs(normalizeAngle(th[i] - m.theta)) < 0.3) sCount++;
+          }
+          return { goats: g, sheep: sCount, sheepHold: g === 0 || sCount >= 3 * g };
+        });
+
+        for (let i = sheep.length - 1; i >= 0; i--) {
+          const s = sheep[i];
+          const theta = th[i];
+          const norm = getSurfaceNormal(theta);
+          if (s.toxicTimer > 0) s.toxicTimer = Math.max(0, s.toxicTimer - dt);
+          if (s.curlTimer > 0) s.curlTimer = Math.max(0, s.curlTimer - dt);
+          if (s.ramCooldown > 0) s.ramCooldown = Math.max(0, s.ramCooldown - dt);
+          if (s.bumpCooldown > 0) s.bumpCooldown = Math.max(0, s.bumpCooldown - dt);
+
+          // ---- Boids along the surface tangent ----
+          let nCount = 0;
+          let closeCount = 0;
+          let sumD = 0;
+          let sumV = 0;
+          let sep = 0;
+          for (let j = 0; j < sheep.length; j++) {
+            if (j === i) continue;
+            const d = normalizeAngle(th[j] - theta);
+            const ad = Math.abs(d);
+            if (ad < SHEEP_NEIGHBOR_ARC) {
+              nCount++;
+              sumD += d;
+              const o = sheep[j];
+              sumV += o.vx * norm.tx + o.vy * norm.ty;
+              if (ad < SHEEP_CLOSE_ARC) closeCount++;
+              if (ad < SHEEP_PERSONAL_ARC) sep -= Math.sign(d || Math.random() - 0.5) * (SHEEP_PERSONAL_ARC - ad);
+            }
+          }
+          s.mass = 1 + closeCount * (s.mega ? 3 : 0.9);
+          s.panic = !s.mega && nCount === 0 && s.curlTimer <= 0;
+
+          const vT = s.vx * norm.tx + s.vy * norm.ty;
+          let accel = 0;
+          const toxic = s.toxicTimer > 0;
+          const cohesionK = (s.mega ? 7 : 2.4) * (toxic ? 0.3 : 1);
+
+          if (nCount > 0) {
+            accel += (sumD / nCount) * R * cohesionK; // cohesion
+            accel += (sumV / nCount - vT) * 0.8; // alignment
+          }
+          accel += sep * R * 26; // separation
+
+          // Megaflock stays around the SSS doors
+          if (s.mega && sss) {
+            const dd = normalizeAngle(SSS_DOOR_ANGLE - theta);
+            if (Math.abs(dd) > 0.22) accel += dd * R * 5;
+          }
+
+          // Forage: wander toward the nearest Moon-Moss, back off from goat-held moss
+          s.grazing = false;
+          let nearest = null;
+          let nearestD = 0.9;
+          mossPatches.forEach((m, mi) => {
+            const d = normalizeAngle(m.theta - theta);
+            const contest = mossContest[mi];
+            if (Math.abs(d) < 0.26 && !contest.sheepHold) {
+              accel -= Math.sign(d || 1) * 180; // dominance aura: step back
+              return;
+            }
+            if (m.energy > 0.25 && Math.abs(d) < Math.abs(nearestD)) {
+              nearest = m;
+              nearestD = d;
+            }
+          });
+          if (!s.mega && nearest && Math.abs(nearestD) > 0.05) accel += Math.sign(nearestD) * 55;
+          if (nearest && Math.abs(nearestD) < 0.12 && s.grounded && s.curlTimer <= 0) s.grazing = true;
+
+          // Copper looks like a mineral lick: sheep are drawn to it (bad idea)
+          for (const c of copperPickups) {
+            const d = normalizeAngle(c.theta - theta);
+            if (Math.abs(d) < 0.5) accel += Math.sign(d) * 70;
+          }
+
+          // Panic: erratic darting when cut off from the flock
+          if (s.panic) {
+            s.panicTimer -= dt;
+            if (s.panicTimer <= 0) {
+              s.panicTimer = 0.25 + Math.random() * 0.35;
+              s.panicJitter = (Math.random() - 0.5) * 2 * 520;
+            }
+            accel += s.panicJitter;
+          }
+
+          // Ram: a low, ground-hugging dash along the curve at a goat that is
+          // contesting the flock's food (only when the sheep hold the patch)
+          if (s.ramTimer > 0) {
+            s.ramTimer = Math.max(0, s.ramTimer - dt);
+            accel = s.ramDir * 1400;
+          } else if (!s.mega && !toxic && s.grounded && s.curlTimer <= 0 && s.ramCooldown <= 0 && closeCount >= 2) {
+            for (const g of goats) {
+              if (!g.grounded) continue;
+              const gTheta = Math.atan2(g.y, g.x);
+              const d = normalizeAngle(gTheta - theta);
+              if (Math.abs(d) > 0.4) continue;
+              const contested = mossContest.some(
+                (c, mi) => c.sheepHold && c.goats > 0 && Math.abs(normalizeAngle(mossPatches[mi].theta - gTheta)) < 0.2
+              );
+              if (contested) {
+                s.ramTimer = 0.55;
+                s.ramDir = Math.sign(d);
+                s.facing = s.ramDir;
+                s.ramCooldown = 6 + Math.random() * 3;
+                break;
+              }
+            }
+          }
+
+          // Integrate tangential motion (sheep are heavy and grippy on the ground)
+          if (s.grounded && s.curlTimer <= 0) {
+            const maxSpeed =
+              (s.ramTimer > 0 ? SHEEP_RAM_SPEED : s.panic ? SHEEP_PANIC_SPEED : SHEEP_WALK) * (toxic ? 0.4 : 1);
+            let nv = (vT + accel * dt) * Math.pow(SHEEP_GROUND_FRICTION, dt);
+            nv = Math.max(-maxSpeed, Math.min(maxSpeed, nv));
+            if (Math.abs(nv) > 4) s.facing = nv > 0 ? 1 : -1;
+            s.vx = norm.tx * nv;
+            s.vy = norm.ty * nv;
+            s.legPhase += Math.abs(nv) * dt * 0.12;
+
+            // Small, rare hops (sheep don't pronk)
+            s.hopTimer -= dt;
+            if (s.hopTimer <= 0) {
+              s.hopTimer = 4 + Math.random() * 7;
+              if (Math.random() < (s.mega ? 0.25 : 0.4)) {
+                s.vx += norm.nx * SHEEP_HOP;
+                s.vy += norm.ny * SHEEP_HOP;
+                s.grounded = false;
+              }
+            }
+          } else if (s.grounded && s.curlTimer > 0) {
+            // Rolling woolball: low friction, spins as it rolls
+            const nv = vT * Math.pow(0.4, dt);
+            s.vx = norm.tx * nv;
+            s.vy = norm.ty * nv;
+            s.rollAngle += (nv / SHEEP_HALF_H) * dt;
+          }
+
+          // Gravity + ground contact (same central field as the goats)
+          const r = Math.hypot(s.x, s.y) || 1;
+          const invR3 = -GM / (r * r * r);
+          s.vx += s.x * invR3 * dt;
+          s.vy += s.y * invR3 * dt;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+          if (!s.grounded && s.curlTimer > 0) s.rollAngle += dt * 8;
+
+          const nr = Math.hypot(s.x, s.y) || 1;
+          const cTheta = Math.atan2(s.y, s.x);
+          const groundR = getTerrainRadius(cTheta) + SHEEP_HALF_H;
+          if (nr <= groundR) {
+            const sn = getSurfaceNormal(cTheta);
+            const t = s.vx * sn.tx + s.vy * sn.ty;
+            s.x = Math.cos(cTheta) * groundR;
+            s.y = Math.sin(cTheta) * groundR;
+            s.vx = sn.tx * t * (s.grounded ? 1 : 0.6);
+            s.vy = sn.ty * t * (s.grounded ? 1 : 0.6);
+            s.grounded = true;
+          } else if (nr > groundR + 3) {
+            s.grounded = false;
+          }
+
+          // Grazing earns passive forage points in scored rounds
+          if (s.grazing && nearest) {
+            nearest.energy = Math.max(0, nearest.energy - dt * 0.03);
+            if (isScoredMode() && !tutorialOpen) roundStats.forage = (roundStats.forage || 0) + FORAGE_PTS_PER_SEC * dt;
+            if (Math.random() < dt * 1.2) spawnParticle(s.x, s.y, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, "#4ade80", 0.5, 2.4);
+          }
+
+          // Knocked into deep space
+          if (nr > MAX_FAR_R) {
+            sheep.splice(i, 1);
+            th.splice(i, 1);
+            onSheepLost(s);
+          }
+        }
+
+        resolveGoatSheepContacts();
+      }
+
+      // Goats and sheep bumping into each other
+      function resolveGoatSheepContacts() {
+        for (const g of goats) {
+          if (g.sheepBumpCd > 0) continue;
+          for (const s of sheep) {
+            const dx = s.x - g.x;
+            const dy = s.y - g.y;
+            const d = Math.hypot(dx, dy);
+            if (d > 25 || d < 0.001) continue;
+            const nx = dx / d;
+            const ny = dy / d;
+
+            // A ramming sheep bowls the goat over along the ground
+            if (s.ramTimer > 0) {
+              const theta = Math.atan2(g.y, g.x);
+              const n = getSurfaceNormal(theta);
+              g.vx += n.tx * s.ramDir * 210 + n.nx * 90;
+              g.vy += n.ty * s.ramDir * 210 + n.ny * 90;
+              g.grounded = false;
+              g.faintTimer = Math.max(g.faintTimer, 0.9);
+              g.sheepBumpCd = 0.8;
+              s.ramTimer = 0;
+              screenShake = Math.max(screenShake, 4);
+              playSound("ram", 0.8);
+              if (g === goats[selectedGoatIdx]) showToast("🐑 Sheep ram! The flock defends its moss");
+              break;
+            }
+
+            const relN = (g.vx - s.vx) * nx + (g.vy - s.vy) * ny;
+            if (relN <= 30) continue;
+            if (s.mega && s.mass >= MEGAFLOCK_MASS_THRESHOLD) {
+              bounceGoatToLowOrbit(g);
+              break;
+            }
+            knockSheep(s, nx, ny, relN * 0.7);
+            g.vx -= nx * relN * 0.25;
+            g.vy -= ny * relN * 0.25;
+            g.sheepBumpCd = 0.25;
+          }
+        }
+      }
+
+      function onSheepLost(s) {
+        if (mode === "sss") {
+          sssState.sheepLost += 1;
+          showToast(`🐑 A sheep was knocked into deep space! −${SSS_SHEEP_LOST_PENALTY}`);
+          // The flock is never short: a replacement trots out of the shed
+          sheep.push(createSheep(SSS_DOOR_ANGLE + (Math.random() - 0.5) * 0.2, { mega: true }));
+        } else if (!tutorialOpen) {
+          showToast("🐑 A sheep floated off into deep space...");
+        }
+      }
+
+      // Goat strikes on sheep: headbutts and the rear-and-slam landing
+      function headbuttSheep(g, hx, hy, dirX, dirY, reach) {
+        for (const s of sheep) {
+          if (Math.hypot(s.x - hx, s.y - hy) > reach + 8) continue;
+          if (s.mega && s.mass >= MEGAFLOCK_MASS_THRESHOLD) {
+            bounceGoatToLowOrbit(g);
+            return;
+          }
+          const isolated = s.mass <= 1;
+          const applied = knockSheep(s, dirX, dirY, 230);
+          if (isolated) startleSheep(s, g.x, g.y);
+          if (g === goats[selectedGoatIdx]) {
+            showToast(isolated ? "🧶 Startled sheep curled into a woolball!" : `🐑 The flock held firm (Δv ${Math.round(applied)})`);
+          }
+        }
+      }
+
+      function slamImpact(g) {
+        g.slamming = false;
+        const theta = Math.atan2(g.y, g.x);
+        const rx = Math.cos(theta);
+        const ry = Math.sin(theta);
+        screenShake = Math.max(screenShake, 7);
+        playSound("ram", 0.75);
+        spawnRadioRing(g.x, g.y, "#fbbf24", 85);
+        for (let i = 0; i < 12; i++) {
+          spawnParticle(g.x - rx * 14, g.y - ry * 14, (Math.random() - 0.5) * 220, (Math.random() - 0.5) * 220, "#cbd5e1", 0.45, 3.2);
+        }
+        // High knockback in a small radius
+        for (const s of sheep) {
+          const dx = s.x - g.x;
+          const dy = s.y - g.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 95) continue;
+          if (s.mega && s.mass >= MEGAFLOCK_MASS_THRESHOLD) {
+            if (d < 40) bounceGoatToLowOrbit(g);
+            continue;
+          }
+          const isolated = s.mass <= 1;
+          if (d < 70) {
+            const k = 1 - d / 70;
+            knockSheep(s, dx / (d || 1) * 0.6 + rx * 0.8, dy / (d || 1) * 0.6 + ry * 0.8, 280 * k + 60);
+          }
+          if (isolated) startleSheep(s, g.x, g.y);
+        }
+        for (const o of goats) {
+          if (o === g) continue;
+          const dx = o.x - g.x;
+          const dy = o.y - g.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 60 || d < 0.001) continue;
+          const k = 1 - d / 60;
+          o.vx += (dx / d) * 160 * k + rx * 120 * k;
+          o.vy += (dy / d) * 160 * k + ry * 120 * k;
+          o.grounded = false;
+        }
+      }
+
+      // ---- Copper Mineral pickups ----
+      function copperActive() {
+        return ["herding", "stampede", "sandbox", "sss", "afterparty"].includes(mode);
+      }
+      function spawnCopper(theta) {
+        const t = theta === undefined ? Math.random() * Math.PI * 2 - Math.PI : theta;
+        copperPickups.push({ theta: normalizeAngle(t), life: 30, pulse: Math.random() * 6 });
+      }
+      function copperPos(c) {
+        const r = getTerrainRadius(c.theta) + 9;
+        return { x: Math.cos(c.theta) * r, y: Math.sin(c.theta) * r };
+      }
+      function updateCopper(dt) {
+        if (!copperActive()) {
+          copperPickups = [];
+          return;
+        }
+        if (mode !== "sandbox" && mode !== "afterparty") {
+          copperTimer -= dt;
+          if (copperTimer <= 0) {
+            copperTimer = 18 + Math.random() * 14;
+            if (copperPickups.length < 2) spawnCopper();
+          }
+        }
+        for (let i = copperPickups.length - 1; i >= 0; i--) {
+          const c = copperPickups[i];
+          c.life -= dt;
+          c.pulse += dt * 4;
+          if (c.life <= 0) {
+            copperPickups.splice(i, 1);
+            continue;
+          }
+          const p = copperPos(c);
+          let taken = false;
+          for (const g of goats) {
+            if (Math.hypot(g.x - p.x, g.y - p.y) < 24) {
+              g.copperTimer = COPPER_BOOST_TIME;
+              playSound("ring", 1.4);
+              if (g === goats[selectedGoatIdx]) showToast("🟠 Copper Mineral: speed + jump boost!");
+              unlockAchievement("copper");
+              taken = true;
+              break;
+            }
+          }
+          if (!taken) {
+            for (const s of sheep) {
+              if (Math.hypot(s.x - p.x, s.y - p.y) < 22) {
+                s.toxicTimer = COPPER_TOXIC_TIME;
+                playSound("bleat", 0.6);
+                showToast("🤢 A sheep ate copper: Copper Toxicity! (Sheep minerals only)");
+                taken = true;
+                break;
+              }
+            }
+          }
+          if (taken) {
+            for (let k = 0; k < 10; k++) {
+              spawnParticle(p.x, p.y, (Math.random() - 0.5) * 140, (Math.random() - 0.5) * 140, "#fb923c", 0.5, 3);
+            }
+            copperPickups.splice(i, 1);
+          }
+        }
+      }
+
+      // ---- Spire-shrubs on elevated crater rims (goat trick-shot forage) ----
+      function buildSpireShrubs() {
+        const rims = [
+          CRATER_CENTER - CRATER_HALF_W * 0.96,
+          CRATER_CENTER + CRATER_HALF_W * 0.96,
+          1.25 - 0.28,
+          1.25 + 0.28,
+          -2.15 - 0.24,
+          -2.15 + 0.24
+        ];
+        spireShrubs = rims.map((t) => ({ theta: normalizeAngle(t), height: 34, regrow: 0 }));
+      }
+      function shrubTip(s) {
+        const r = getTerrainRadius(s.theta) + s.height;
+        return { x: Math.cos(s.theta) * r, y: Math.sin(s.theta) * r };
+      }
+      function updateShrubs(dt) {
+        if (mode === "school") return;
+        for (const s of spireShrubs) {
+          if (s.regrow > 0) {
+            s.regrow = Math.max(0, s.regrow - dt);
+            continue;
+          }
+          const tip = shrubTip(s);
+          for (const g of goats) {
+            if (g.grounded || Math.hypot(g.x - tip.x, g.y - tip.y) > 24) continue;
+            s.regrow = 14;
+            playSound("nibble", 1.3);
+            for (let k = 0; k < 10; k++) {
+              spawnParticle(tip.x, tip.y, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120, "#a3e635", 0.5, 3);
+            }
+            if (g === goats[selectedGoatIdx]) {
+              if (isScoredMode()) roundStats.tricks = (roundStats.tricks || 0) + 1;
+              showToast(`🌵 Spire-shrub trick shot!${isScoredMode() ? ` +${SHRUB_TRICK_BONUS}` : ""}`);
+            }
+            break;
+          }
+        }
+      }
+
+      // Scored rounds: a small grazing flock joins the herd from round 2
+      // (never in the seeded Daily, so every player gets the same Daily)
+      function spawnRoundSheep() {
+        sheep = [];
+        copperPickups = [];
+        copperTimer = 12 + Math.random() * 8;
+        if (mode === "sandbox") {
+          for (let i = 0; i < 4; i++) sheep.push(createSheep(0.95 + i * 0.07));
+          spawnCopper(2.6);
+          return;
+        }
+        if ((mode === "herding" || mode === "stampede") && round >= 2) {
+          const n = Math.min(2 + Math.floor(round / 2), 6);
+          // A main flock by one moss patch and a straggler by another
+          for (let i = 0; i < n - 1; i++) sheep.push(createSheep(0.85 + i * 0.06));
+          sheep.push(createSheep(-0.15));
+        }
+      }
+
+      // =========================================================================
+      // 8c. FINAL LEVEL: "ENTERING THE SSS" (SHEEP SHED SOCIETY)
+      // =========================================================================
+      const SSS_DOOR_ANGLE = Math.PI * 0.5; // barn doors face "down" in the default view
+      const SSS_SIGN_ANGLE = SSS_DOOR_ANGLE + 0.26;
+      const SSS_BALES = 3;
+      const SSS_FLOCK = 24;
+      const SSS_SHEEP_LOST_PENALTY = 300;
+      const SSS_DELIVER_SPEED = 140;
+      const SSS_UNLOCK_ROUND = 6;
+      let sss = null; // live level state when mode === "sss" or "afterparty"
+      let sssState = { delivered: 0, sheepLost: 0 };
+      let bales = [];
+
+      function sssUnlocked() {
+        return Boolean(loadJSON("sssUnlocked", false));
+      }
+      function unlockSss() {
+        if (sssUnlocked()) return;
+        saveJSON("sssUnlocked", true);
+        showToast("🐑 Final Level unlocked: Entering the SSS!");
+      }
+      function afterpartyUnlocked() {
+        return Boolean(loadJSON("afterpartyUnlocked", false));
+      }
+
+      function airlockPoint() {
+        const r = getTerrainRadius(SSS_DOOR_ANGLE) + 112;
+        return { x: Math.cos(SSS_DOOR_ANGLE) * r, y: Math.sin(SSS_DOOR_ANGLE) * r };
+      }
+
+      function createBale(r, ang, zeroG = false) {
+        const v = zeroG ? 0 : Math.sqrt(GM / r);
+        return {
+          x: Math.cos(ang) * r,
+          y: Math.sin(ang) * r,
+          vx: -Math.sin(ang) * v,
+          vy: Math.cos(ang) * v,
+          angle: Math.random() * Math.PI,
+          spin: (Math.random() - 0.5) * 1.2,
+          carrier: null,
+          delivered: false,
+          zeroG,
+          bumpCd: 0
+        };
+      }
+
+      function initSss() {
+        sss = { doorOpen: 0, opening: false, flockQueue: 0, flockTimer: 0, signWarned: false };
+        sssState = { delivered: 0, sheepLost: 0 };
+        sheep = [];
+        bales = [];
+        const alts = [150, 215, 285];
+        for (let i = 0; i < SSS_BALES; i++) {
+          bales.push(createBale(MOON_R + alts[i], -Math.PI * 0.5 + 1.3 + i * 2.1));
+        }
+        boulders = [];
+        canisters = [canisters[0]].filter(Boolean);
+        copperPickups = [];
+        spawnCopper(SSS_DOOR_ANGLE - 0.9);
+        copperTimer = 16;
+      }
+
+      function initAfterparty() {
+        sss = { doorOpen: 1, opening: true, flockQueue: 0, flockTimer: 0, signWarned: true, party: true };
+        sssState = { delivered: 0, sheepLost: 0 };
+        bales = [];
+        sheep = [];
+        for (let i = 0; i < 5; i++) {
+          bales.push(createBale(MOON_R + 120 + Math.random() * 200, Math.random() * Math.PI * 2, true));
+        }
+        setPartyHerd(partySettings.herd);
+        copperPickups = [];
+        spawnCopper(0.3);
+        spawnCopper(2.9);
+      }
+
+      function dropBale(g) {
+        const b = g.carrying;
+        if (!b) return;
+        b.carrier = null;
+        b.vx = g.vx;
+        b.vy = g.vy;
+        b.bumpCd = 1;
+        g.carrying = null;
+      }
+
+      function updateBales(dt) {
+        for (let i = bales.length - 1; i >= 0; i--) {
+          const b = bales[i];
+          if (b.delivered) continue;
+          if (b.bumpCd > 0) b.bumpCd = Math.max(0, b.bumpCd - dt);
+          b.angle += b.spin * dt;
+          if (b.carrier) {
+            const g = b.carrier;
+            if (!goats.includes(g)) {
+              b.carrier = null;
+              continue;
+            }
+            // Towed just behind the goat's jetpack
+            const theta = Math.atan2(g.y, g.x);
+            const bodyAngle = theta + Math.PI * 0.5 + g.tilt;
+            b.x = g.x - Math.cos(bodyAngle) * g.facing * 24;
+            b.y = g.y - Math.sin(bodyAngle) * g.facing * 24;
+            b.vx = g.vx;
+            b.vy = g.vy;
+            continue;
+          }
+          if (b.zeroG) {
+            // Afterparty bales drift in zero-G and bounce off the shed
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+            b.vx *= Math.pow(0.6, dt);
+            b.vy *= Math.pow(0.6, dt);
+          } else {
+            const r = Math.hypot(b.x, b.y) || 1;
+            const invR3 = -GM / (r * r * r);
+            b.vx += b.x * invR3 * dt;
+            b.vy += b.y * invR3 * dt;
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+          }
+          const nr = Math.hypot(b.x, b.y) || 1;
+          const bTheta = Math.atan2(b.y, b.x);
+          const groundR = getTerrainRadius(bTheta) + 12;
+          if (nr < groundR) {
+            const sn = getSurfaceNormal(bTheta);
+            const t = (b.vx * sn.tx + b.vy * sn.ty) * 0.5;
+            b.x = Math.cos(bTheta) * groundR;
+            b.y = Math.sin(bTheta) * groundR;
+            b.vx = sn.tx * t + (b.zeroG ? sn.nx * 40 : 0);
+            b.vy = sn.ty * t + (b.zeroG ? sn.ny * 40 : 0);
+          }
+          if (nr > MAX_FAR_R) {
+            // Lost bales are re-tethered into a fresh orbit
+            const fresh = createBale(MOON_R + 180 + Math.random() * 80, Math.random() * Math.PI * 2, b.zeroG);
+            bales[i] = fresh;
+            if (mode === "sss") showToast("🌾 A hay bale drifted off. Ground crew re-tethered a new one.");
+            continue;
+          }
+          // Pickup: touch a bale while not towing one
+          for (const g of goats) {
+            if (g.carrying || g.sheepBumpCd > 0) continue;
+            if (Math.hypot(g.x - b.x, g.y - b.y) > 26) continue;
+            const rel = Math.hypot(g.vx - b.vx, g.vy - b.vy);
+            if (rel <= 170 || b.zeroG) {
+              b.carrier = g;
+              g.carrying = b;
+              playSound("nibble", 0.8);
+              if (g === goats[selectedGoatIdx]) showToast("🌾 Hay bale hooked! Tow it to the SSS airlock");
+            } else if (b.bumpCd <= 0) {
+              const dx = b.x - g.x;
+              const dy = b.y - g.y;
+              const d = Math.hypot(dx, dy) || 1;
+              b.vx += (dx / d) * 60;
+              b.vy += (dy / d) * 60;
+              b.bumpCd = 1.5;
+              if (g === goats[selectedGoatIdx]) showToast(`🌾 Too fast to hook the bale (${Math.round(rel)} vs 170). Match its orbit!`);
+            }
+            break;
+          }
+        }
+      }
+
+      function updateSss(dt) {
+        if (!sss) return;
+        const ap = airlockPoint();
+
+        // Doors swing open when a goat approaches the airlock, releasing the flock
+        if (!sss.opening) {
+          for (const g of goats) {
+            if (Math.hypot(g.x - ap.x, g.y - ap.y) < 260) {
+              sss.opening = true;
+              sss.flockQueue = SSS_FLOCK;
+              playSound("ufo", 0.5);
+              screenShake = 4;
+              showToast("🚪 The SSS doors swing open... here comes the flock!");
+              break;
+            }
+          }
+        }
+        if (sss.opening && sss.doorOpen < 1) sss.doorOpen = Math.min(1, sss.doorOpen + dt / 1.2);
+        if (sss.flockQueue > 0 && sss.doorOpen > 0.6) {
+          sss.flockTimer -= dt;
+          if (sss.flockTimer <= 0) {
+            sss.flockTimer = 0.08;
+            sss.flockQueue -= 1;
+            const s = createSheep(SSS_DOOR_ANGLE + (Math.random() - 0.5) * 0.08, { mega: true });
+            const n = getSurfaceNormal(SSS_DOOR_ANGLE);
+            const side = Math.random() < 0.5 ? -1 : 1;
+            s.vx = n.nx * 60 + n.tx * side * 120;
+            s.vy = n.ny * 60 + n.ty * side * 120;
+            s.grounded = false;
+            sheep.push(s);
+            if (Math.random() < 0.3) playSound("bleat", 0.8 + Math.random() * 0.6);
+          }
+        }
+
+        if (sss.party) return;
+
+        // "SHEEP MINERAL ONLY": entering the doorway zone neutralizes copper boosts
+        for (const g of goats) {
+          if (g.copperTimer <= 0) continue;
+          const theta = Math.atan2(g.y, g.x);
+          const surf = getTerrainRadius(theta);
+          if (Math.abs(normalizeAngle(theta - SSS_DOOR_ANGLE)) < 0.5 && Math.hypot(g.x, g.y) < surf + 190) {
+            g.copperTimer = 0;
+            if (g === goats[selectedGoatIdx]) showToast("🪧 SHEEP MINERAL ONLY: copper boost neutralized");
+          }
+        }
+
+        // Delivery: tow a bale into the airlock slowly
+        for (const g of goats) {
+          const b = g.carrying;
+          if (!b) continue;
+          if (Math.hypot(g.x - ap.x, g.y - ap.y) > 48) continue;
+          const speed = Math.hypot(g.vx, g.vy);
+          if (speed > SSS_DELIVER_SPEED) {
+            if (b.bumpCd <= 0) {
+              b.bumpCd = 2;
+              showToast(`🌾 Too fast for the airlock (${Math.round(speed)} vs ${SSS_DELIVER_SPEED}). Ease off!`);
+            }
+            continue;
+          }
+          b.delivered = true;
+          b.carrier = null;
+          g.carrying = null;
+          sssState.delivered += 1;
+          playSound("lock");
+          for (let k = 0; k < 18; k++) {
+            const a = (k / 18) * Math.PI * 2;
+            spawnParticle(ap.x, ap.y, Math.cos(a) * 130, Math.sin(a) * 130, "#facc15", 0.6, 3.5);
+          }
+          showToast(
+            sssState.delivered >= SSS_BALES ? "🌾 All hay delivered! The SSS welcomes you..." : `🌾 Hay delivered ${sssState.delivered}/${SSS_BALES}`
+          );
+          if (sssState.delivered >= SSS_BALES) startCutscene();
+        }
+        bales = bales.filter((b) => !b.delivered);
+      }
+
+      // ---- Afterparty sandbox (gravity + herd sliders, zero-G hay) ----
+      const partySettings = loadJSON("partySettings", { gravity: 1, herd: 18 }) || { gravity: 1, herd: 18 };
+      function applyGravity() {
+        GM = GM_BASE * (mode === "afterparty" ? partySettings.gravity : 1);
+      }
+      function setPartyHerd(n) {
+        partySettings.herd = n;
+        const regular = sheep.filter((s) => !s.mega);
+        sheep = sheep.filter((s) => s.mega);
+        for (let i = 0; i < n; i++) {
+          // New party guests arrive in small groups around the whole shed
+          const s = regular[i] || createSheep(SSS_DOOR_ANGLE + Math.floor(i / 4) * 1.1 + (i % 4) * 0.07 + 0.25);
+          sheep.push(s);
+        }
+      }
+
+      // =========================================================================
+      // 8d. "ALWAYS HAS BEEN" FINALE CUTSCENE (STATE MACHINE)
+      // =========================================================================
+      // Phases: pan (camera pulls back, shed dissolves into a ball of sheep)
+      //      -> standoff (dialogue beats) -> hold (3 s) -> banner (DOM overlay)
+      const CUT_PAN = 2.6;
+      const CUT_BEAT_GOAT = 0.5;
+      const CUT_BEAT_BAA = 2.2;
+      const CUT_BEAT_SHEEP = 3.2;
+      const CUT_HOLD = 3.0;
+      let cutscene = null;
+      const sheepBall = (() => {
+        // Deterministic packing of woolly sheep into a disc (the reveal)
+        const rng = seededRng("always-has-been");
+        const puffs = [];
+        for (let rr = MOON_R - 12; rr > 10; rr -= 23) {
+          const n = Math.max(1, Math.floor((Math.PI * 2 * rr) / 24));
+          const off = rng() * Math.PI * 2;
+          for (let k = 0; k < n; k++) {
+            const a = off + (k / n) * Math.PI * 2;
+            puffs.push({
+              x: Math.cos(a) * rr + (rng() - 0.5) * 5,
+              y: Math.sin(a) * rr + (rng() - 0.5) * 5,
+              r: 13 + rng() * 3,
+              face: rr > MOON_R - 30 ? a : rng() < 0.45 ? rng() * Math.PI * 2 : null,
+              tint: WOOL_TINTS[Math.floor(rng() * WOOL_TINTS.length)]
+            });
+          }
+        }
+        return puffs;
+      })();
+
+      function startCutscene() {
+        const g = goats[selectedGoatIdx] || goats[0];
+        cutscene = {
+          t: 0,
+          from: { x: camera.x, y: camera.y, zoom: camera.zoom },
+          goat: g ? { ...g, x: 0, y: -0.001, vx: 0, vy: 0, tilt: 0, facing: -1, boosting: false, grounded: false, faintTimer: 0, carrying: null, copperTimer: 0 } : null,
+          bannerShown: false
+        };
+        clearHeldInputs();
+        document.body.classList.add("cutscene");
+        roundStats.time = Math.max(roundStats.time, 5);
+        unlockAchievement("sss");
+        saveJSON("afterpartyUnlocked", true);
+      }
+
+      function cutsceneTarget(w, h) {
+        const zoom = Math.min(h * 0.4, w * 0.26) / MOON_R;
+        return { x: w * 0.3, y: h * 0.5, zoom };
+      }
+
+      function easeInOut(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+
+      function updateCutscene(dt, w, h) {
+        if (!cutscene) return;
+        cutscene.t += dt;
+        const k = easeInOut(Math.min(1, cutscene.t / CUT_PAN));
+        const tgt = cutsceneTarget(w, h);
+        camera.x = cutscene.from.x + (tgt.x - cutscene.from.x) * k;
+        camera.y = cutscene.from.y + (tgt.y - cutscene.from.y) * k;
+        camera.zoom = cutscene.from.zoom + (tgt.zoom - cutscene.from.zoom) * k;
+        camera.targetZoom = camera.zoom;
+        const standoff = cutscene.t - CUT_PAN;
+        if (standoff >= CUT_BEAT_SHEEP + CUT_HOLD && !cutscene.bannerShown) {
+          cutscene.bannerShown = true;
+          showSssBanner();
+        }
+      }
+
+      function drawSheepBall(alpha) {
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, MOON_R, 0, Math.PI * 2);
+        const grad = ctx.createRadialGradient(-80, -90, 30, 0, 0, MOON_R + 10);
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.7, "#e2e8f0");
+        grad.addColorStop(1, "#94a3b8");
+        ctx.fillStyle = grad;
+        ctx.fill();
+        for (const p of sheepBall) {
+          ctx.fillStyle = p.tint;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+          if (p.face !== null) {
+            // Peaceful, eyes-closed sheep face
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.face + Math.PI * 0.5);
+            ctx.fillStyle = "#334155";
+            ctx.beginPath();
+            ctx.ellipse(0, -2, 5.5, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-7, -5, 3.2, 1.6, -0.5, 0, Math.PI * 2);
+            ctx.ellipse(7, -5, 3.2, 1.6, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#f8fafc";
+            ctx.lineWidth = 0.9;
+            ctx.beginPath();
+            ctx.arc(-2, -4, 1.3, 0.1, Math.PI - 0.1);
+            ctx.moveTo(3.3, -4);
+            ctx.arc(2, -4, 1.3, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawSpeechBubble(text, x, y, tailX, tailY, size, alpha = 1, italic = false) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = `${italic ? "italic " : ""}800 ${Math.round(size)}px sans-serif`;
+        const padX = size * 0.8;
+        const tw = ctx.measureText(text).width;
+        const bw = tw + padX * 2;
+        const bh = size * 2.1;
+        const bx = Math.max(6, Math.min(x - bw / 2, (canvas.clientWidth || window.innerWidth) - bw - 6));
+        const by = Math.max(6, y - bh);
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx + bw * 0.5 - size * 0.5, by + bh - 1);
+        ctx.lineTo(tailX, tailY);
+        ctx.lineTo(bx + bw * 0.5 + size * 0.5, by + bh - 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, size * 0.7);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#0f172a";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, bx + bw / 2, by + bh / 2 + 1);
+        ctx.restore();
+      }
+
+      function renderCutscene(w, h) {
+        const c = cutscene;
+        const k = Math.min(1, Math.max(0, (c.t - 0.8) / (CUT_PAN - 0.8)));
+
+        ctx.save();
+        ctx.translate(camera.x, camera.y);
+        ctx.scale(camera.zoom, camera.zoom);
+        drawShed(1 - k);
+        drawSheepBall(k);
+        ctx.restore();
+
+        // Characters are drawn in screen space so they read at any zoom
+        const cs = Math.min(3, Math.max(1.4, Math.min(w, h) / 230));
+        const standoff = c.t - CUT_PAN;
+        const bob = Math.sin(c.t * 1.6) * 4;
+        const goatX = w * 0.62;
+        const goatY = h * 0.5 + bob;
+        if (c.goat) {
+          ctx.save();
+          ctx.translate(goatX, goatY);
+          ctx.scale(cs, cs);
+          drawOneGoat(c.goat, -1, false);
+          ctx.restore();
+        }
+
+        // Astronaut sheep drifts in from the right and stops just behind the goat
+        const drift = easeInOut(Math.min(1, Math.max(0, (c.t - 1.0) / 1.8)));
+        const sheepX = w * 1.15 + (w * 0.82 - w * 1.15) * drift;
+        const sheepY = h * 0.43 + Math.sin(c.t * 1.3 + 1) * 3;
+        ctx.save();
+        ctx.translate(sheepX, sheepY);
+        ctx.scale(cs, cs);
+        drawSheepFigure({ facing: -1, wool: "#f8fafc", helmet: true, crook: true, deadpan: true, roll: 0, tilt: -0.08 });
+        ctx.restore();
+
+        const fs = Math.max(13, Math.min(22, w / 34));
+        if (standoff >= CUT_BEAT_GOAT) {
+          drawSpeechBubble("Wait... it's all sheep?", goatX - 10 * cs, goatY - 34 * cs, goatX + 4 * cs, goatY - 18 * cs, fs);
+        }
+        if (standoff >= CUT_BEAT_BAA && standoff < CUT_BEAT_SHEEP + 0.8) {
+          const pt = standoff - CUT_BEAT_BAA;
+          const a = Math.max(0, 1 - pt / 1.8) * 0.75;
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = `italic 700 ${Math.round(fs * 0.85)}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText("*baa*", w * 0.42 + pt * 12, h * 0.36 - pt * 18);
+          ctx.restore();
+        }
+        if (standoff >= CUT_BEAT_SHEEP) {
+          drawSpeechBubble("Always has been.", sheepX - 6 * cs, sheepY - 40 * cs, sheepX - 2 * cs, sheepY - 22 * cs, fs);
+        }
+      }
+
+      function showSssBanner() {
+        const res = sssResults();
+        const prev = loadJSON("best.sss", null);
+        const isBest = !prev || res.score > prev.score;
+        if (isBest) saveJSON("best.sss", { score: res.score });
+        document.getElementById("sssBannerStats").innerHTML =
+          `<div class="res-row"><span>Hay delivered</span><b class="good">${SSS_BALES}/${SSS_BALES}</b></div>` +
+          `<div class="res-row"><span>Time</span><b>${roundStats.time.toFixed(1)}s</b></div>` +
+          `<div class="res-row"><span>Your Δv</span><b>${Math.round(roundStats.dv)}</b></div>` +
+          `<div class="res-row"><span>Sheep lost to space</span><b class="${sssState.sheepLost ? "bad" : "good"}">${sssState.sheepLost}</b></div>` +
+          `<div class="res-points">${res.score.toLocaleString()} pts</div>` +
+          `<div class="res-best ${isBest ? "new" : ""}">${isBest ? "🏅 NEW SSS BEST!" : `Best: ${prev.score.toLocaleString()} pts`}</div>`;
+        renderUnlocks(document.getElementById("sssBannerAch"));
+        document.getElementById("sssBanner").classList.add("open");
+      }
+
+      function sssResults() {
+        const parTime = 150;
+        const parDv = 900;
+        const score = Math.max(
+          100,
+          Math.round(
+            3000 +
+              Math.max(0, parTime - roundStats.time) * SCORE_PER_SEC_UNDER_PAR +
+              Math.max(0, parDv - roundStats.dv) * SCORE_PER_DV_UNDER_PAR -
+              sssState.sheepLost * SSS_SHEEP_LOST_PENALTY
+          )
+        );
+        return { score };
+      }
+
+      function endCutscene(next) {
+        cutscene = null;
+        document.body.classList.remove("cutscene");
+        document.getElementById("sssBanner").classList.remove("open");
+        if (next === "afterparty") {
+          closeTutorialAndLaunch("afterparty");
+        } else {
+          hasStartedOnce = false;
+          openTutorialOverlay();
+        }
       }
 
       // =========================================================================
@@ -3906,6 +5125,20 @@
           if (g.ramCooldown > 0) g.ramCooldown = Math.max(0, g.ramCooldown - dt);
           if (g.nibbleCooldown > 0) g.nibbleCooldown = Math.max(0, g.nibbleCooldown - dt);
           if (g.jumpBufferTimer > 0) g.jumpBufferTimer = Math.max(0, g.jumpBufferTimer - dt);
+          if (g.copperTimer > 0) g.copperTimer = Math.max(0, g.copperTimer - dt);
+          if (g.sheepBumpCd > 0) g.sheepBumpCd = Math.max(0, g.sheepBumpCd - dt);
+          if (g.slamTimer > 0) {
+            g.slamTimer -= dt;
+            if (g.slamTimer <= 0 && !g.grounded) {
+              // Slam: drive down and forward along a short arc
+              const st = Math.atan2(g.y, g.x);
+              const sdx = -Math.sin(st) * g.facing;
+              const sdy = Math.cos(st) * g.facing;
+              g.vx += -Math.cos(st) * 300 + sdx * 60;
+              g.vy += -Math.sin(st) * 300 + sdy * 60;
+              g.slamming = true;
+            }
+          }
           g.sinceLandTimer += dt;
 
           let moveInput = 0;
@@ -3960,7 +5193,7 @@
 
             const currentTanVel = g.vx * norm.tx + g.vy * norm.ty;
             // Player sprints; idle goats walk
-            const maxRunSpeed = isPlayer ? (g.isKid ? 360 : 335) : AI_WALK_SPEED * (g.isKid ? 1.6 : 1);
+            const maxRunSpeed = (isPlayer ? (g.isKid ? 360 : 335) : AI_WALK_SPEED * (g.isKid ? 1.6 : 1)) * (g.copperTimer > 0 ? 1.25 : 1);
             const runAccel = g.isKid ? 1150 : 1020;
 
             if (moveInput !== 0) {
@@ -4027,8 +5260,9 @@
             const dirX = Math.cos(bodyAngle) * g.facing;
             const dirY = Math.sin(bodyAngle) * g.facing;
 
-            const thrustAccel = (g.isKid ? SURFACE_G * 1.18 : SURFACE_G * 0.68) * g.throttle;
-            if (isPlayer && isScoredMode()) roundStats.dv += thrustAccel * dt;
+            const thrustAccel =
+              (g.isKid ? SURFACE_G * 1.18 : SURFACE_G * 0.68) * g.throttle * (g.copperTimer > 0 ? 1.35 : 1) * (g.carrying ? 0.8 : 1);
+            if (isPlayer && (isScoredMode() || mode === "sss")) roundStats.dv += thrustAccel * dt;
             g.vx += dirX * thrustAccel * dt;
             g.vy += dirY * thrustAccel * dt;
 
@@ -4129,6 +5363,7 @@
                 if (g.jumpBufferTimer > 0 && !tutorialOpen) {
                   triggerPronk(g);
                 }
+                if (g.slamming) slamImpact(g);
               } else {
                 const gravTan = -Math.cos(curTheta) * (GM / (nr * nr)) * sNorm.tx - Math.sin(curTheta) * (GM / (nr * nr)) * sNorm.ty;
                 const boostedTan = vDotT + gravTan * subDt * 0.75;
@@ -4274,7 +5509,12 @@
         if (!tutorialOpen) {
           updateDebris(dt);
           updateCrate(dt);
+          updateCopper(dt);
+          updateShrubs(dt);
+          updateSss(dt);
         }
+        updateSheep(dt);
+        updateBales(dt);
 
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
@@ -4291,7 +5531,7 @@
           if (ring.r >= ring.maxR) radioRings.splice(i, 1);
         }
 
-        if (!tutorialOpen && isScoredMode()) roundStats.time += dt;
+        if (!tutorialOpen && (isScoredMode() || mode === "sss")) roundStats.time += dt;
 
         if (mode === "stampede" && stampede.over && !tutorialOpen && !resultsOpen) {
           showStampedeOver("hearts");
@@ -4338,6 +5578,10 @@
       function updateCamera(dt) {
         const w = canvas.clientWidth || window.innerWidth;
         const h = canvas.clientHeight || window.innerHeight;
+        if (cutscene) {
+          updateCutscene(dt, w, h); // the finale drives the camera itself
+          return;
+        }
 
         const clearTop = layoutCache.topBarH + 8;
         const clearBottom = h - layoutCache.bottomReserve - 8;
@@ -4551,6 +5795,524 @@
         ctx.restore();
       }
 
+      // ---- Expansion rendering: shed, sheep, copper, shrubs, hay bales ----
+      function terrainPath() {
+        const steps = 180;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const theta = (i / steps) * Math.PI * 2;
+          const r = getTerrainRadius(theta);
+          if (i === 0) ctx.moveTo(Math.cos(theta) * r, Math.sin(theta) * r);
+          else ctx.lineTo(Math.cos(theta) * r, Math.sin(theta) * r);
+        }
+        ctx.closePath();
+      }
+
+      // Text that stays readable when its surface prop is upside down on screen
+      function uprightText(text, x, y) {
+        if (ctx.getTransform().d < 0) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI);
+          ctx.fillText(text, 0, 0);
+          ctx.restore();
+        } else {
+          ctx.fillText(text, x, y);
+        }
+      }
+
+      // Stand-up props on the surface: draw in a frame where -y points outward
+      function atSurface(theta, lift, fn) {
+        const r = getTerrainRadius(theta) + lift;
+        ctx.save();
+        ctx.translate(Math.cos(theta) * r, Math.sin(theta) * r);
+        ctx.rotate(theta + Math.PI * 0.5);
+        fn();
+        ctx.restore();
+      }
+
+      // The Sheep Shed: an orbital barn tethered in deep space
+      function drawShed(alpha = 1) {
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Tethers into the dark (it's anchored to... something)
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 8]);
+        for (const a of [-2.6, -0.55, 2.2]) {
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * (MOON_R + 5), Math.sin(a) * (MOON_R + 5));
+          ctx.lineTo(Math.cos(a) * (MOON_R + 900), Math.sin(a) * (MOON_R + 900));
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Warm glow leaking from the barn
+        const glow = ctx.createRadialGradient(0, 0, MOON_R * 0.85, 0, 0, MOON_R * 1.25);
+        glow.addColorStop(0, "rgba(251, 191, 36, 0.12)");
+        glow.addColorStop(1, "rgba(251, 191, 36, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, MOON_R * 1.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Red plank walls
+        terrainPath();
+        const wall = ctx.createRadialGradient(-70, -60, 30, 0, 0, MOON_R + 20);
+        wall.addColorStop(0, "#dc2626");
+        wall.addColorStop(0.7, "#b91c1c");
+        wall.addColorStop(1, "#7f1d1d");
+        ctx.fillStyle = wall;
+        ctx.fill();
+
+        ctx.save();
+        ctx.clip();
+        // Horizontal planks on the lower half
+        ctx.strokeStyle = "rgba(69, 10, 10, 0.45)";
+        ctx.lineWidth = 2;
+        for (let y = 0; y < MOON_R + 20; y += 16) {
+          ctx.beginPath();
+          ctx.moveTo(-MOON_R - 20, y);
+          ctx.lineTo(MOON_R + 20, y);
+          ctx.stroke();
+        }
+        // Corrugated metal roof on the upper half
+        const roof = ctx.createLinearGradient(0, -MOON_R - 20, 0, 0);
+        roof.addColorStop(0, "#e2e8f0");
+        roof.addColorStop(1, "#64748b");
+        ctx.fillStyle = roof;
+        ctx.fillRect(-MOON_R - 30, -MOON_R - 60, (MOON_R + 30) * 2, MOON_R + 60);
+        for (let x = -MOON_R - 30; x < MOON_R + 30; x += 9) {
+          ctx.fillStyle = "rgba(15, 23, 42, 0.18)";
+          ctx.fillRect(x, -MOON_R - 60, 3.5, MOON_R + 60);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+          ctx.fillRect(x + 4, -MOON_R - 60, 1.5, MOON_R + 60);
+        }
+        // White eave trim between roof and wall
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(-MOON_R - 30, -4, (MOON_R + 30) * 2, 8);
+        // Hayloft window
+        ctx.fillStyle = "#fde68a";
+        ctx.fillRect(-26, 60, 52, 40);
+        ctx.strokeStyle = "#f8fafc";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(-26, 60, 52, 40);
+        ctx.beginPath();
+        ctx.moveTo(-26, 60);
+        ctx.lineTo(26, 100);
+        ctx.moveTo(26, 60);
+        ctx.lineTo(-26, 100);
+        ctx.stroke();
+        ctx.restore();
+
+        terrainPath();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#f8fafc";
+        ctx.stroke();
+
+        // Moss/turf patches (sheep grazing)
+        for (const m of mossPatches) {
+          if (m.energy <= 0.05) continue;
+          atSurface(m.theta, 0, () => {
+            ctx.fillStyle = `rgba(132, 204, 22, ${(0.4 + m.energy * 0.5).toFixed(2)})`;
+            ctx.beginPath();
+            ctx.ellipse(0, -2, 18 * m.energy, 6 * m.energy, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        // Grain silo where the lander stands on the Moon (still wall-kickable)
+        atSurface(LANDER_ANGLE, 0, () => {
+          ctx.fillStyle = "#cbd5e1";
+          ctx.fillRect(-14, -70, 28, 70);
+          ctx.beginPath();
+          ctx.arc(0, -70, 14, Math.PI, 0);
+          ctx.fill();
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 1.5;
+          for (let y = -60; y < 0; y += 10) {
+            ctx.beginPath();
+            ctx.moveTo(-14, y);
+            ctx.lineTo(14, y);
+            ctx.stroke();
+          }
+        });
+        // Weathervane where the flag stands (still wall-kickable)
+        atSurface(FLAG_ANGLE, 0, () => {
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -82);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(0, -80);
+          ctx.rotate(Math.sin(simTime * 0.7) * 0.4);
+          ctx.fillStyle = "#facc15";
+          // A little sheep-shaped vane
+          ctx.beginPath();
+          ctx.ellipse(0, -6, 12, 6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(10, -10, 7, 5);
+          ctx.restore();
+        });
+
+        // Loading chute label on the crater
+        const topR = getTerrainRadius(CRATER_CENTER);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.6)";
+        ctx.font = "700 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("HAY CHUTE", 0, -topR + 22);
+
+        drawBarnDoors();
+
+        // Party string lights in the Afterparty
+        if (sss && sss.party) {
+          for (let i = 0; i < 48; i++) {
+            const a = (i / 48) * Math.PI * 2;
+            const r = getTerrainRadius(a) + 6;
+            const on = (Math.floor(simTime * 4) + i) % 3 !== 0;
+            ctx.fillStyle = on ? ["#f472b6", "#facc15", "#38bdf8", "#4ade80"][i % 4] : "rgba(148,163,184,0.4)";
+            ctx.beginPath();
+            ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      // Barn facade with oversized swinging doors and the warning sign
+      function drawBarnDoors() {
+        const open = sss ? sss.doorOpen : 0;
+        atSurface(SSS_DOOR_ANGLE, 0, () => {
+          // Facade with a gable
+          ctx.fillStyle = "#991b1b";
+          ctx.beginPath();
+          ctx.moveTo(-44, 0);
+          ctx.lineTo(-44, -52);
+          ctx.lineTo(0, -74);
+          ctx.lineTo(44, -52);
+          ctx.lineTo(44, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "#f8fafc";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          // Warm interior light through the doorway
+          const glowA = 0.25 + open * 0.75;
+          const light = ctx.createLinearGradient(0, -46, 0, 0);
+          light.addColorStop(0, `rgba(253, 224, 71, ${glowA.toFixed(2)})`);
+          light.addColorStop(1, `rgba(251, 146, 60, ${glowA.toFixed(2)})`);
+          ctx.fillStyle = light;
+          ctx.fillRect(-34, -46, 68, 46);
+          // Two door leaves hinged at the outside edges, swinging open
+          const leafW = 34 * Math.max(0.12, 1 - open * 0.88);
+          for (const side of [-1, 1]) {
+            const x0 = side * 34;
+            const x1 = x0 - side * leafW;
+            ctx.fillStyle = "#b91c1c";
+            ctx.fillRect(Math.min(x0, x1), -46, Math.abs(x1 - x0), 46);
+            ctx.strokeStyle = "#f8fafc";
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(Math.min(x0, x1), -46, Math.abs(x1 - x0), 46);
+            ctx.beginPath();
+            ctx.moveTo(x0, -46);
+            ctx.lineTo(x1, 0);
+            ctx.moveTo(x1, -46);
+            ctx.lineTo(x0, 0);
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#f8fafc";
+          ctx.font = "800 8px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          uprightText("S S S", 0, -58);
+        });
+        // "SHEEP MINERAL ONLY" sign
+        atSurface(SSS_SIGN_ANGLE, 0, () => {
+          ctx.strokeStyle = "#78350f";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -34);
+          ctx.stroke();
+          ctx.fillStyle = "#fef08a";
+          ctx.fillRect(-30, -56, 60, 24);
+          ctx.strokeStyle = "#0f172a";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(-30, -56, 60, 24);
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "800 7px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const flipped = ctx.getTransform().d < 0;
+          uprightText(flipped ? "ONLY" : "SHEEP MINERAL", 0, -49);
+          uprightText(flipped ? "SHEEP MINERAL" : "ONLY", 0, -39);
+        });
+      }
+
+      function drawAirlock() {
+        if (!sss || sss.party || mode !== "sss") return;
+        const ap = airlockPoint();
+        const px = 1 / Math.max(0.3, camera.zoom);
+        ctx.save();
+        ctx.strokeStyle = `rgba(250, 204, 21, ${(0.55 + Math.sin(simTime * 4) * 0.25).toFixed(2)})`;
+        ctx.lineWidth = 2.5 * px;
+        ctx.setLineDash([8 * px, 6 * px]);
+        ctx.beginPath();
+        ctx.arc(ap.x, ap.y, 48, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#fde68a";
+        ctx.font = `800 ${11 * px}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(`AIRLOCK 🌾 ${sssState.delivered}/${SSS_BALES}`, ap.x, ap.y + 4 * px);
+        ctx.restore();
+      }
+
+      function drawBale(b) {
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        // Short tether trailing the bale
+        if (!b.carrier) {
+          ctx.strokeStyle = "rgba(203, 213, 225, 0.5)";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(-b.vx * 0.05 + 8, -b.vy * 0.05 - 8, -b.vx * 0.09, -b.vy * 0.09);
+          ctx.stroke();
+        }
+        ctx.rotate(b.angle);
+        ctx.fillStyle = "#eab308";
+        ctx.beginPath();
+        ctx.roundRect(-14, -9, 28, 18, 3);
+        ctx.fill();
+        ctx.strokeStyle = "#a16207";
+        ctx.lineWidth = 1.2;
+        for (let x = -10; x <= 10; x += 5) {
+          ctx.beginPath();
+          ctx.moveTo(x, -9);
+          ctx.lineTo(x + 2, 9);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = "#78350f";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(-7, -9);
+        ctx.lineTo(-7, 9);
+        ctx.moveTo(7, -9);
+        ctx.lineTo(7, 9);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawExpansionProps() {
+        // Spire-shrubs on the rims
+        if (mode !== "school") {
+          for (const s of spireShrubs) {
+            const ready = s.regrow <= 0;
+            atSurface(s.theta, 0, () => {
+              ctx.strokeStyle = "#65a30d";
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(0, 0);
+              ctx.lineTo(0, -s.height * (ready ? 1 : 0.35));
+              ctx.stroke();
+              if (ready) {
+                ctx.fillStyle = "#a3e635";
+                for (let k = 0; k < 4; k++) {
+                  ctx.beginPath();
+                  ctx.ellipse(k % 2 ? 5 : -5, -s.height + 6 + k * 6, 5, 2.6, k % 2 ? 0.5 : -0.5, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(0, -s.height, 3.5 + Math.sin(simTime * 3 + s.theta) * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            });
+          }
+        }
+        // Copper Mineral pickups
+        for (const c of copperPickups) {
+          atSurface(c.theta, 0, () => {
+            const pulse = 0.6 + Math.sin(c.pulse) * 0.4;
+            const glow = ctx.createRadialGradient(0, -9, 1, 0, -9, 20);
+            glow.addColorStop(0, `rgba(251, 146, 60, ${(0.55 * pulse).toFixed(2)})`);
+            glow.addColorStop(1, "rgba(251, 146, 60, 0)");
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(0, -9, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#c2410c";
+            ctx.strokeStyle = "#fdba74";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(7, -10);
+            ctx.lineTo(4, 0);
+            ctx.lineTo(-5, 0);
+            ctx.lineTo(-7, -11);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          });
+        }
+        for (const b of bales) drawBale(b);
+        drawAirlock();
+      }
+
+      // One sheep in local coordinates (feet at y = +12, facing +x when facing = 1)
+      function drawSheepFigure(o) {
+        ctx.save();
+        if (o.tilt) ctx.rotate(o.tilt);
+        ctx.scale(o.facing, 1);
+        const woolC = o.toxic ? "#d9f99d" : o.wool;
+        if (o.curl) {
+          // Woolly ball, rolling
+          ctx.rotate(o.roll);
+          ctx.fillStyle = woolC;
+          for (let k = 0; k < 7; k++) {
+            const a = (k / 7) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(Math.cos(a) * 6, Math.sin(a) * 6, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.beginPath();
+          ctx.arc(0, 0, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#334155";
+          ctx.beginPath();
+          ctx.arc(7, 2, 2.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+        // Legs
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 2.6;
+        ctx.lineCap = "round";
+        const stride = Math.sin(o.legPhase || 0) * 3;
+        for (const lx of [-8, -4, 5, 9]) {
+          const sw = (lx < 0 ? stride : -stride) * (o.walking ? 1 : 0);
+          ctx.beginPath();
+          ctx.moveTo(lx, 3);
+          ctx.lineTo(lx + sw, 12);
+          ctx.stroke();
+        }
+        // Wool body: a cloud of puffs
+        ctx.fillStyle = woolC;
+        for (const [px, py, pr] of [[-9, -2, 6], [-3, -5, 7], [4, -5, 7], [9, -1, 5.5], [-6, 2, 5.5], [3, 2, 6]]) {
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = "rgba(100, 116, 139, 0.45)";
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(-3, -5, 7, Math.PI * 1.1, Math.PI * 1.8);
+        ctx.stroke();
+        // Dark face and ears
+        ctx.fillStyle = "#334155";
+        ctx.beginPath();
+        ctx.ellipse(14, -5, 4.6, 6, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(10.5, -9, 3.2, 1.5, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+        // Eyes: dizzy when toxic, half-lidded when deadpan, wide when panicked
+        ctx.fillStyle = "#f8fafc";
+        if (o.toxic) {
+          ctx.font = "700 6px sans-serif";
+          ctx.fillText("@", 13, -5);
+        } else if (o.deadpan) {
+          ctx.fillRect(13.6, -7.4, 3.2, 1.1);
+          ctx.fillStyle = "#0f172a";
+          ctx.fillRect(14.4, -6.4, 1.6, 0.9);
+        } else {
+          ctx.beginPath();
+          ctx.arc(15.3, -6.5, o.panic ? 1.6 : 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (o.helmet) {
+          ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(13, -6, 10.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(255,255,255,0.6)";
+          ctx.beginPath();
+          ctx.arc(13, -6, 7.5, Math.PI * 1.15, Math.PI * 1.45);
+          ctx.stroke();
+          // Life-support backpack
+          ctx.fillStyle = "#e2e8f0";
+          ctx.fillRect(-15, -10, 7, 10);
+        }
+        if (o.crook) {
+          // Shepherd's crook held in the front hoof
+          ctx.strokeStyle = "#a16207";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(1, 10);
+          ctx.lineTo(-3, -30);
+          ctx.arc(1.5, -30, 4.5, Math.PI, Math.PI * 2.1);
+          ctx.stroke();
+        }
+        ctx.restore();
+        if (o.panic || o.toxic) {
+          // Little sweat drops / dizzy stars
+          ctx.fillStyle = o.toxic ? "#bef264" : "#7dd3fc";
+          const t = simTime * 5;
+          for (let k = 0; k < 2; k++) {
+            ctx.beginPath();
+            ctx.arc(Math.cos(t + k * Math.PI) * 9, -16 + Math.sin(t + k * Math.PI) * 2, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      function drawSheepFlock() {
+        for (const s of sheep) {
+          const theta = Math.atan2(s.y, s.x);
+          ctx.save();
+          ctx.translate(s.x, s.y);
+          ctx.rotate(theta + Math.PI * 0.5);
+          if (s.ramTimer > 0) {
+            // Ground-hugging dash streaks
+            ctx.strokeStyle = "rgba(226, 232, 240, 0.6)";
+            ctx.lineWidth = 1.5;
+            for (let k = 0; k < 3; k++) {
+              ctx.beginPath();
+              ctx.moveTo(-s.ramDir * (14 + k * 6), -2 - k * 4);
+              ctx.lineTo(-s.ramDir * (26 + k * 6), -2 - k * 4);
+              ctx.stroke();
+            }
+          }
+          if (s.mega && s.mass >= MEGAFLOCK_MASS_THRESHOLD) {
+            ctx.strokeStyle = "rgba(250, 204, 21, 0.18)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -2, 17, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          drawSheepFigure({
+            facing: s.facing,
+            wool: s.wool,
+            curl: s.curlTimer > 0,
+            roll: s.rollAngle,
+            toxic: s.toxicTimer > 0,
+            panic: s.panic,
+            legPhase: s.legPhase,
+            walking: s.grounded && Math.hypot(s.vx, s.vy) > 8,
+            tilt: s.ramTimer > 0 ? 0.25 * s.ramDir : 0
+          });
+          ctx.restore();
+        }
+      }
+
       // Challenge targets: altitude band annulus and ring gates
       function drawObjective() {
         const px = 1 / Math.max(0.3, camera.zoom); // one screen pixel in world units
@@ -4728,9 +6490,12 @@
       }
 
       function drawGoats() {
-        for (let i = 0; i < goats.length; i++) {
-          const g = goats[i];
-          const isSelected = i === selectedGoatIdx;
+        for (let i = 0; i < goats.length; i++) drawOneGoat(goats[i], i, i === selectedGoatIdx);
+      }
+
+      // One goat (also used by the finale cutscene, in screen space)
+      function drawOneGoat(g, i, isSelected) {
+        {
           const theta = Math.atan2(g.y, g.x);
           const scale = g.isKid ? 0.68 : 1.0;
           const rankIdx = goatRankIndex(g.palette.name);
@@ -4766,6 +6531,15 @@
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(0, 0, 33 * scale, -Math.PI * 0.75, -Math.PI * 0.75 + Math.PI * 0.5 * g.fuel);
+            ctx.stroke();
+          }
+
+          // Copper boost aura
+          if (g.copperTimer > 0) {
+            ctx.strokeStyle = `rgba(251, 146, 60, ${(0.45 + Math.sin(simTime * 10) * 0.25).toFixed(2)})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, 24 * scale, 0, Math.PI * 2);
             ctx.stroke();
           }
 
@@ -5088,6 +6862,11 @@
 
         drawStars(w, h);
 
+        if (cutscene) {
+          renderCutscene(w, h);
+          return;
+        }
+
         ctx.save();
         const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
         const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
@@ -5096,10 +6875,13 @@
 
         drawObjective();
         drawTrajectories();
-        drawMoon();
+        if (mode === "sss" || mode === "afterparty") drawShed();
+        else drawMoon();
         drawProps();
+        drawExpansionProps();
         drawCrate();
         drawDebris();
+        drawSheepFlock();
         drawGoats();
         drawUfo();
         drawParticlesAndRings();
@@ -5143,7 +6925,11 @@
       function updateTopHud() {
         const orbiting = goats.filter((g) => g.orbitState === "ORBIT").length;
         const total = goats.length;
-        if (isScoredMode()) {
+        if (mode === "sss") {
+          setText("badgeStatus", `SSS • 🌾 ${sssState.delivered}/${SSS_BALES} • 🐑 lost ${sssState.sheepLost}`);
+        } else if (mode === "afterparty") {
+          setText("badgeStatus", `Party • 🐐 ${total} • 🐑 ${sheep.length}`);
+        } else if (isScoredMode()) {
           const tag =
             mode === "daily" ? `D${round}/${DAILY_ROUNDS}` : mode === "stampede" ? `S${round} ${"♥".repeat(Math.max(0, stampede.hearts))}` : `R${round}`;
           const ok = goats.filter(goatQualifies).length;
@@ -5204,8 +6990,10 @@
         setText("fhThr", fine ? `FINE ${thrPct}%` : `${thrPct}%`);
         if (isScoredMode()) {
           const n = Math.max(1, roundStats.goats);
-          const parDv = PAR_DV_PER_GOAT[objective.type] * n;
-          const parTime = PAR_TIME_BASE + PAR_TIME_PER_GOAT[objective.type] * n;
+          // Same par as the results screen (Stampede tightens it every round)
+          const k = stampedeParFactor();
+          const parDv = Math.round(PAR_DV_PER_GOAT[objective.type] * n * k);
+          const parTime = (PAR_TIME_BASE + PAR_TIME_PER_GOAT[objective.type] * n) * k;
           setText("fhTime", `${Math.floor(roundStats.time)}/${Math.round(parTime)}s`);
           setStyle("fhTime", "color", roundStats.time <= parTime ? "#f8fafc" : "#fb7185");
           setText("fhDv", `${Math.round(roundStats.dv)}/${parDv}`);
@@ -5230,6 +7018,10 @@
             e.preventDefault();
             handleLeaderboardSubmit();
           }
+          return;
+        }
+        if (cutscene) {
+          e.preventDefault();
           return;
         }
         if (resultsOpen) {
@@ -5424,6 +7216,30 @@
       document.getElementById("btnLaunchSandbox").addEventListener("click", () => closeTutorialAndLaunch("sandbox"));
       document.getElementById("btnLaunchDaily").addEventListener("click", () => closeTutorialAndLaunch("daily"));
       document.getElementById("btnLaunchStampede").addEventListener("click", () => closeTutorialAndLaunch("stampede"));
+      document.getElementById("btnLaunchSss").addEventListener("click", () => closeTutorialAndLaunch("sss"));
+      document.getElementById("btnLaunchAfterparty").addEventListener("click", () => closeTutorialAndLaunch("afterparty"));
+      document.getElementById("btnAfterparty").addEventListener("click", () => endCutscene("afterparty"));
+      document.getElementById("btnSssMenu").addEventListener("click", () => endCutscene("menu"));
+      const gravSlider = document.getElementById("partyGravity");
+      const herdSlider = document.getElementById("partyHerd");
+      gravSlider.value = partySettings.gravity;
+      herdSlider.value = partySettings.herd;
+      document.getElementById("partyGravityVal").textContent = `${Number(partySettings.gravity).toFixed(1)}x`;
+      document.getElementById("partyHerdVal").textContent = `${partySettings.herd}`;
+      gravSlider.addEventListener("input", (e) => {
+        partySettings.gravity = Number(e.target.value);
+        document.getElementById("partyGravityVal").textContent = `${partySettings.gravity.toFixed(1)}x`;
+        saveJSON("partySettings", partySettings);
+        applyGravity();
+      });
+      herdSlider.addEventListener("input", (e) => {
+        const n = Number(e.target.value);
+        document.getElementById("partyHerdVal").textContent = `${n}`;
+        setPartyHerd(n);
+        saveJSON("partySettings", partySettings);
+      });
+      // ?unlock=sss opens the final level straight away (handy for testing)
+      if (/[?&]unlock=sss\b/.test(location.search)) saveJSON("sssUnlocked", true);
       document.getElementById("resDaily").addEventListener("click", (e) => {
         const btn = e.target.closest("[data-share]");
         if (!btn) return;
@@ -5476,6 +7292,15 @@
         } else if (type === "moss") {
           mossPatches.push(createMoss(randomAngle));
           showToast("🌿 Planted Glowing Moon-Moss");
+        } else if (type === "sheep") {
+          sheep.push(createSheep(randomAngle));
+          showToast("🐑 Spawned a Sheep");
+        } else if (type === "copper") {
+          spawnCopper(randomAngle);
+          showToast("🟠 Spawned Copper Mineral");
+        } else if (type === "bale") {
+          bales.push(createBale(MOON_R + 140 + Math.random() * 160, Math.random() * Math.PI * 2, mode === "afterparty"));
+          showToast(mode === "afterparty" ? "🌾 Zero-G Hay Bale" : "🌾 Spawned an Orbiting Hay Bale");
         } else if (type === "ufo") {
           ufoTimer = 0;
           showToast("🛸 Summoning Alien Saucer...");
@@ -5543,7 +7368,7 @@
         accumulator += frameDt;
 
         let steps = 0;
-        if (resultsOpen) accumulator = 0; // world freezes behind the results screen
+        if (resultsOpen || cutscene) accumulator = 0; // world freezes behind results / during the finale
         while (accumulator >= FIXED_DT && steps < MAX_STEPS_PER_FRAME) {
           stepPhysics(FIXED_DT);
           accumulator -= FIXED_DT;
