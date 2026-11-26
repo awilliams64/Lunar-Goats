@@ -10,17 +10,37 @@
 create table if not exists public.scores (
   id         bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
-  -- "herd-r1", "herd-r2", ... or "daily-2026-11-19"
-  board      text not null
-             check (board ~ '^(herd-r[1-9][0-9]?|daily-[0-9]{4}-[0-9]{2}-[0-9]{2})$'),
+  -- "herd-r1", "herd-r2", ..., "daily-2026-11-19" or "stampede"
+  board      text not null,
   name       text not null check (char_length(name) between 1 and 16),
-  score      integer not null check (score between 100 and 30000),
-  -- 1-3 for a herd round; 3-9 for a full Daily (sum of its three rounds)
-  stars      smallint not null check (stars between 1 and 9),
+  -- herd round / Daily: 100-30000. Stampede is a whole endless run: up to 1,000,000
+  score      integer not null,
+  -- 1-3 for a herd round; 3-9 for a full Daily; rounds cleared (1-999) for Stampede
+  stars      smallint not null,
   -- every round needs a 5-second orbit lock, so anything faster is impossible
-  time_s     real not null check (time_s >= 5 and time_s < 7200),
-  dv         integer not null check (dv between 0 and 100000)
+  time_s     real not null,
+  dv         integer not null
 );
+
+-- Table-level checks (they compare columns, so they can't be column checks).
+-- Safe to re-run: this also upgrades a table created by the older version of
+-- this script, which had per-column checks without Stampede.
+alter table public.scores drop constraint if exists scores_board_check;
+alter table public.scores drop constraint if exists scores_score_check;
+alter table public.scores drop constraint if exists scores_stars_check;
+alter table public.scores drop constraint if exists scores_time_s_check;
+alter table public.scores drop constraint if exists scores_dv_check;
+
+alter table public.scores add constraint scores_board_check
+  check (board ~ '^(herd-r[1-9][0-9]?|daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|stampede)$');
+alter table public.scores add constraint scores_score_check
+  check (score between 100 and 30000 or (board = 'stampede' and score between 100 and 1000000));
+alter table public.scores add constraint scores_stars_check
+  check (stars between 1 and 9 or (board = 'stampede' and stars between 1 and 999));
+alter table public.scores add constraint scores_time_s_check
+  check (time_s >= 5 and (time_s < 7200 or (board = 'stampede' and time_s < 86400)));
+alter table public.scores add constraint scores_dv_check
+  check (dv between 0 and 100000 or (board = 'stampede' and dv between 0 and 100000000));
 
 create index if not exists scores_board_score_idx
   on public.scores (board, score desc, created_at);

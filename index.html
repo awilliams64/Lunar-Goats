@@ -749,6 +749,53 @@
       font-size: 11px;
     }
 
+    .roster-rank {
+      color: #facc15;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .rank-bar {
+      height: 4px;
+      margin-top: 3px;
+      border-radius: 2px;
+      background: rgba(148, 163, 184, 0.25);
+      overflow: hidden;
+    }
+
+    .rank-bar > i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #facc15);
+    }
+
+    .streak-line {
+      color: #fdba74;
+      font-weight: 700;
+    }
+
+    .share-btn {
+      margin-top: 8px;
+      min-height: 36px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(250, 204, 21, 0.6);
+      background: rgba(250, 204, 21, 0.12);
+      color: #fde68a;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .share-btn:hover {
+      background: rgba(250, 204, 21, 0.22);
+    }
+
+    .hearts {
+      letter-spacing: 2px;
+      font-size: 18px;
+    }
+
     .roster-badges {
       flex: 0 0 auto;
       font-size: 14px;
@@ -1158,11 +1205,14 @@
       <div class="tut-actions">
         <button id="btnLaunchHerd" class="btn-launch-primary">🚀 LAUNCH HERD</button>
         <button id="btnLaunchDaily" class="btn-launch-secondary">📅 DAILY CHALLENGE</button>
+        <button id="btnLaunchStampede" class="btn-launch-secondary">🐐 STAMPEDE (ENDLESS)</button>
         <button id="btnLaunchSchool" class="btn-launch-secondary">🎓 FLIGHT SCHOOL</button>
         <button id="btnLaunchSandbox" class="btn-launch-secondary subtle">🧪 SANDBOX</button>
       </div>
       <div id="schoolNote" class="menu-note school-note">🎓 New here? Start with <b>Flight School</b>: a 2-minute guided first orbit.</div>
       <div id="dailyBestLine" class="menu-note">📅 Today's Daily Challenge: not played yet</div>
+      <div id="streakLine" class="menu-note streak-line" style="display:none"></div>
+      <div id="stampedeBestLine" class="menu-note" style="display:none"></div>
 
       <details class="menu-section">
         <summary>🎮 Controls</summary>
@@ -1196,6 +1246,8 @@
           <li><strong>Rounds rotate:</strong> full orbit → altitude band → ring gates. Moss refuels you and grows kids.</li>
           <li><strong>📦 Supply crates (round 2+):</strong> match the crate's orbit and drift into it slowly (under 80 relative speed) for a full tank and +150 points. To catch up with something ahead of you, slow down: a lower orbit is faster.</li>
           <li><strong>🛰️ Space debris (round 5+):</strong> a pulsing ⚠ marker shows where a collision would happen and how soon. A short burn changes your path and dodges it.</li>
+          <li><strong>🐐 Stampede:</strong> one endless run. Each round adds a goat and tightens par by 4%. You have 3 ❤️ herd hearts: every goat lost or abducted costs one. Lose all three and the run is over. No retries!</li>
+          <li><strong>🎖️ Goat ranks:</strong> every orbit and every round cleared earns a goat XP. Goats rank up from Kid to Billy, Astronaut, Commander and Astro-Goat, and get new gear at each rank.</li>
           <li><strong>Hazards arrive later:</strong> meteor strikes start in round 3, UFO abductions in round 4 and space debris in round 5 (meteors and UFO arrive in rounds 2 and 3 of the Daily). Headbutt the UFO to stop it.</li>
         </ul>
       </details>
@@ -1773,6 +1825,7 @@
       const HAZARD_START = {
         herding: { meteors: 3, ufo: 4, debris: 5 },
         daily: { meteors: 2, ufo: 3 }, // no debris in the 3-round Daily
+        stampede: { meteors: 2, ufo: 3, debris: 4 },
         school: { meteors: Infinity, ufo: Infinity, debris: Infinity }
       };
       function meteorsActive(r = round) {
@@ -1803,6 +1856,34 @@
       let dailyTotal = 0;
       let dailyRoundScores = [];
       let dailyRuns = []; // per-round {score, stars, time, dv} for the Daily submission
+
+      // ---- Stampede: one endless run with 3 herd hearts ----
+      const STAMPEDE_HEARTS = 3;
+      const STAMPEDE_MAX_GOATS = 8;
+      const STAMPEDE_PAR_STEP = 0.04; // par tightens 4% per round...
+      const STAMPEDE_PAR_FLOOR = 0.6; // ...down to 60% of normal
+      let stampede = freshStampede();
+      function freshStampede() {
+        return { hearts: STAMPEDE_HEARTS, total: 0, cleared: 0, stars: 0, time: 0, dv: 0, lost: 0, over: false };
+      }
+      function stampedeParFactor(r = round) {
+        return mode === "stampede" ? Math.max(STAMPEDE_PAR_FLOOR, 1 - STAMPEDE_PAR_STEP * (r - 1)) : 1;
+      }
+      function heartsText() {
+        return "❤️".repeat(Math.max(0, stampede.hearts)) + "🖤".repeat(Math.max(0, STAMPEDE_HEARTS - stampede.hearts));
+      }
+      // Called whenever a goat is lost to deep space or abducted
+      function onGoatLost() {
+        if (mode !== "stampede" || stampede.over) return;
+        stampede.hearts -= 1;
+        stampede.lost += 1;
+        playSound("lock", 0.6);
+        if (stampede.hearts <= 0) {
+          stampede.over = true; // ended from the main loop, outside the physics step
+        } else {
+          setTimeout(() => showToast(`💔 Herd heart lost! ${heartsText()} left`), 2700);
+        }
+      }
 
       // ---- Online leaderboard (Supabase) ----
       // Paste your project URL and its anon / publishable key (both are safe to
@@ -1857,7 +1938,7 @@
       }
 
       // Renders rows with textContent only (player names are untrusted input)
-      function renderBoardRows(el, rows, highlight) {
+      function renderBoardRows(el, rows, highlight, board = "") {
         el.replaceChildren();
         if (!rows || rows.length === 0) {
           el.textContent = "No scores yet. Be the first!";
@@ -1871,7 +1952,8 @@
           const cells = [
             ["lb-rank", ["🥇", "🥈", "🥉"][i] || `${i + 1}.`],
             ["lb-name", r.name],
-            ["lb-stars", "★".repeat(Math.min(r.stars, 3)) + (r.stars > 3 ? ` ${r.stars}` : "")],
+            // Stampede stores the round reached in the stars column
+            ["lb-stars", board === "stampede" ? `R${r.stars}` : "★".repeat(Math.min(r.stars, 3)) + (r.stars > 3 ? ` ${r.stars}` : "")],
             ["lb-score", `${r.score}`]
           ];
           for (const [cls, text] of cells) {
@@ -1888,7 +1970,7 @@
       async function loadBoardInto(el, board, highlight) {
         el.textContent = "Loading…";
         try {
-          renderBoardRows(el, await fetchTopScores(board), highlight);
+          renderBoardRows(el, await fetchTopScores(board), highlight, board);
         } catch (e) {
           el.textContent = "Leaderboard is offline right now.";
         }
@@ -1896,6 +1978,7 @@
 
       function boardLabel(board) {
         if (board.startsWith("daily-")) return `Daily ${board.slice(6)}`;
+        if (board === "stampede") return "Stampede (all-time)";
         return `Herd Round ${board.slice(6)}`;
       }
 
@@ -1963,7 +2046,7 @@
           : "Clear a round, then enter your name on the results screen to post your score.";
         const select = document.getElementById("menuBoardSelect");
         if (!select.options.length) {
-          const opts = [[`daily-${todayKey()}`, "📅 Today's Daily"]];
+          const opts = [[`daily-${todayKey()}`, "📅 Today's Daily"], ["stampede", "🐐 Stampede (all-time)"]];
           for (let r = 1; r <= 9; r++) opts.push([`herd-r${r}`, `Herd Round ${r}`]);
           for (const [value, label] of opts) {
             const o = document.createElement("option");
@@ -1980,7 +2063,7 @@
       }
 
       function isScoredMode() {
-        return mode === "herding" || mode === "daily";
+        return mode === "herding" || mode === "daily" || mode === "stampede";
       }
 
       // localStorage can be unavailable (privacy modes, sandboxed frames): never throw
@@ -2092,7 +2175,11 @@
         { id: "daily", icon: "📅", name: "Daily Driver", desc: "Finish a Daily Challenge" },
         { id: "graduate", icon: "🎓", name: "Graduate", desc: "Complete Flight School" },
         { id: "rendezvous", icon: "📦", name: "Rendezvous", desc: "Match orbits and grab a supply crate" },
-        { id: "dodger", icon: "🛰️", name: "Collision Avoidance", desc: "Dodge a predicted debris collision" }
+        { id: "dodger", icon: "🛰️", name: "Collision Avoidance", desc: "Dodge a predicted debris collision" },
+        { id: "streak3", icon: "🔥", name: "On a Roll", desc: "Finish the Daily 3 days in a row" },
+        { id: "streak7", icon: "📆", name: "Goat Week", desc: "Finish the Daily 7 days in a row" },
+        { id: "stampede8", icon: "🐐", name: "Thundering Herd", desc: "Clear 8 rounds in one Stampede" },
+        { id: "commander", icon: "🎖️", name: "Field Promotion", desc: "Rank a goat up to Commander" }
       ];
       let unlockedAch = loadJSON("achievements", {});
       let newlyUnlocked = [];
@@ -2125,14 +2212,124 @@
         document.getElementById("dailyBestLine").textContent = dailyBest
           ? `📅 Today's Daily Challenge best: ${dailyBest.score} pts`
           : "📅 Today's Daily Challenge: not played yet";
+
+        const streak = currentStreak();
+        const streakEl = document.getElementById("streakLine");
+        const doneToday = streak.last === todayKey();
+        if (streak.count > 0) {
+          streakEl.textContent = doneToday
+            ? `🔥 ${streak.count}-day streak · see you tomorrow!`
+            : `🔥 ${streak.count}-day streak · finish today's Daily to keep it alive!`;
+        } else {
+          streakEl.textContent = streak.best
+            ? `🔥 Streak lost (best: ${streak.best} days). Finish today's Daily to start a new one.`
+            : "🔥 Finish the Daily on consecutive days to build a streak.";
+        }
+        streakEl.style.display = "block";
+
+        const sBest = loadJSON("best.stampede", null);
+        const sEl = document.getElementById("stampedeBestLine");
+        sEl.textContent = sBest ? `🐐 Best Stampede: ${sBest.score.toLocaleString()} pts · cleared ${sBest.round} rounds` : "";
+        sEl.style.display = sBest ? "block" : "none";
+      }
+
+      // ---- Daily streak: consecutive days with a finished Daily ----
+      const STREAK_MILESTONES = new Set([3, 7, 14, 30, 50, 100, 365]);
+      function dayKeyOffset(days) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+      function loadStreak() {
+        const s = loadJSON("streak", null);
+        return s && typeof s.count === "number" ? s : { count: 0, best: 0, last: "" };
+      }
+      // Streak as it stands today: alive if the last finished Daily was today or yesterday
+      function currentStreak() {
+        const s = loadStreak();
+        if (s.last === todayKey() || s.last === dayKeyOffset(-1)) return s;
+        return { ...s, count: 0 };
+      }
+      // Record today's finished Daily; returns {count, extended}
+      function recordDailyStreak() {
+        const s = loadStreak();
+        const today = todayKey();
+        if (s.last === today) return { count: s.count, extended: false };
+        s.count = s.last === dayKeyOffset(-1) ? s.count + 1 : 1;
+        s.last = today;
+        s.best = Math.max(s.best || 0, s.count);
+        saveJSON("streak", s);
+        if (s.count >= 3) unlockAchievement("streak3");
+        if (s.count >= 7) unlockAchievement("streak7");
+        return { count: s.count, extended: true };
+      }
+
+      // ---- Share text (copied or sent through the phone's share sheet) ----
+      function gameUrl() {
+        return /^https?:/.test(location.protocol) ? location.origin + location.pathname : "";
+      }
+      function dailyShareText() {
+        const stars = dailyRuns.map((r) => "⭐".repeat(r.stars) + "☆".repeat(3 - r.stars)).join(" ");
+        const streak = currentStreak().count;
+        return [
+          `🐐 Lunar Goats Daily ${todayKey()}`,
+          stars,
+          `${dailyTotal.toLocaleString()} pts${streak >= 2 ? ` · 🔥 ${streak}-day streak` : ""}`,
+          gameUrl()
+        ].filter(Boolean).join("\n");
+      }
+      function stampedeShareText() {
+        return [
+          `🐐 Lunar Goats Stampede`,
+          `Reached round ${stampede.cleared + 1} · ${stampede.total.toLocaleString()} pts · ${stampede.stars}⭐`,
+          gameUrl()
+        ].filter(Boolean).join("\n");
+      }
+      async function shareText(text, btn) {
+        const done = (label) => {
+          btn.textContent = label;
+          setTimeout(() => (btn.textContent = "📤 Share result"), 2200);
+        };
+        try {
+          if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+            await navigator.share({ text });
+            return;
+          }
+        } catch (e) {
+          if (e && e.name === "AbortError") return; // user closed the share sheet
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          done("✓ Copied! Paste it anywhere");
+        } catch (e) {
+          // Clipboard blocked: fall back to a hidden textarea
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.append(ta);
+          ta.select();
+          let ok = false;
+          try {
+            ok = document.execCommand("copy");
+          } catch (err) {
+            ok = false;
+          }
+          ta.remove();
+          done(ok ? "✓ Copied! Paste it anywhere" : "Couldn't copy on this browser");
+        }
+      }
+      function shareButtonHtml() {
+        return `<button type="button" class="share-btn" data-share="1">📤 Share result</button>`;
       }
 
       // ---- Round results ----
       function computeRoundResults() {
         const n = Math.max(1, roundStats.goats);
         const type = objective.type;
-        const parDv = PAR_DV_PER_GOAT[type] * n;
-        const parTime = PAR_TIME_BASE + PAR_TIME_PER_GOAT[type] * n;
+        const k = stampedeParFactor();
+        const parDv = Math.round(PAR_DV_PER_GOAT[type] * n * k);
+        const parTime = (PAR_TIME_BASE + PAR_TIME_PER_GOAT[type] * n) * k;
         const underTime = roundStats.time <= parTime;
         const underDv = roundStats.dv <= parDv;
         const stars = 1 + (underTime ? 1 : 0) + (underDv ? 1 : 0);
@@ -2156,7 +2353,7 @@
 
         unlockAchievement("shepherd");
         // Every goat that helped clear the round gets credit in the roster
-        for (const g of goats) rosterEntry(g.palette.name).rounds += 1;
+        for (const g of goats) gainXp(g.palette.name, (r) => (r.rounds += 1));
         saveRoster();
         if (res.stars === 3) unlockAchievement("ace");
         if (roundStats.dv < res.parDv * 0.5) unlockAchievement("frugal");
@@ -2177,6 +2374,14 @@
           dailyRoundScores.push(res.score);
           dailyRuns.push({ score: res.score, stars: res.stars, time: roundStats.time, dv: roundStats.dv });
           dailyTotal += res.score;
+        } else if (mode === "stampede") {
+          stampede.total += res.score;
+          stampede.cleared = round;
+          stampede.stars += res.stars;
+          stampede.time += roundStats.time;
+          stampede.dv += roundStats.dv;
+          if (stampede.cleared >= 8) unlockAchievement("stampede8");
+          bestText = `Run total: ${stampede.total.toLocaleString()} pts`;
         }
 
         showResults(res, bestText, isNewBest);
@@ -2187,7 +2392,10 @@
         clearHeldInputs();
 
         const dailyFinal = mode === "daily" && round >= DAILY_ROUNDS;
-        const label = mode === "daily" ? `Daily Round ${round}/${DAILY_ROUNDS}` : `Round ${round}`;
+        const label =
+          mode === "daily" ? `Daily Round ${round}/${DAILY_ROUNDS}` : mode === "stampede" ? `Stampede Round ${round}` : `Round ${round}`;
+        document.getElementById("resStars").style.display = "";
+        document.getElementById("resStarKey").style.display = "";
         document.getElementById("resBadge").textContent = OBJECTIVE_NAMES[objective.type];
         document.getElementById("resHeading").textContent = `${label} Cleared!`;
 
@@ -2211,19 +2419,7 @@
           `<div class="res-points">${res.score} pts</div><div class="res-best ${isNewBest ? "new" : ""}">${bestText}</div>`;
 
         const achEl = document.getElementById("resAch");
-        if (newlyUnlocked.length) {
-          achEl.innerHTML =
-            "<b>🏆 Unlocked:</b> " +
-            newlyUnlocked
-              .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
-              .map((a) => `${a.icon} ${a.name}`)
-              .join(" · ");
-          achEl.style.display = "block";
-        } else {
-          achEl.innerHTML = "";
-          achEl.style.display = "none";
-        }
-        newlyUnlocked = [];
+        renderUnlocks(achEl);
 
         const dailyEl = document.getElementById("resDaily");
         const primary = document.getElementById("btnResPrimary");
@@ -2236,15 +2432,18 @@
             const newDailyBest = !prev || dailyTotal > prev.score;
             if (newDailyBest) saveJSON(key, { score: dailyTotal, rounds: dailyRoundScores.slice() });
             unlockAchievement("daily");
-            if (newlyUnlocked.length) {
-              achEl.innerHTML += (achEl.innerHTML ? " · " : "<b>🏆 Unlocked:</b> ") + "📅 Daily Driver";
-              achEl.style.display = "block";
-              newlyUnlocked = [];
-            }
+            const streak = recordDailyStreak();
+            renderUnlocks(achEl);
+            const streakHtml =
+              streak.count >= 2
+                ? `<div class="res-best new">🔥 ${streak.count}-day streak!${streak.extended && STREAK_MILESTONES.has(streak.count) ? " Milestone!" : ""}</div>`
+                : `<div class="res-daily-rounds">🔥 Streak started. Come back tomorrow to keep it going!</div>`;
             dailyEl.innerHTML =
               `<div class="res-points">Daily total: ${dailyTotal} pts</div>` +
               `<div class="res-best ${newDailyBest ? "new" : ""}">${newDailyBest ? "🏅 NEW DAILY BEST!" : `Today's best: ${prev.score} pts`}</div>` +
-              `<div class="res-daily-rounds">${dailyRoundScores.map((s, i) => `R${i + 1}: ${s}`).join(" · ")}</div>`;
+              `<div class="res-daily-rounds">${dailyRoundScores.map((s, i) => `R${i + 1}: ${s}`).join(" · ")}</div>` +
+              streakHtml +
+              shareButtonHtml();
             primary.textContent = "↻ RETRY DAILY";
             primary.dataset.action = "retryDaily";
             secondary.textContent = "🏠 MENU";
@@ -2256,6 +2455,16 @@
             secondary.textContent = "🏠 MENU";
             secondary.dataset.action = "menu";
           }
+        } else if (mode === "stampede") {
+          dailyEl.style.display = "block";
+          const nextGoats = Math.min(2 + round + 1, STAMPEDE_MAX_GOATS);
+          dailyEl.innerHTML =
+            `<div class="hearts">${heartsText()}</div>` +
+            `<div class="res-daily-rounds">Next: round ${round + 1} · ${nextGoats} goats · par ${Math.round(stampedeParFactor(round + 1) * 100)}%</div>`;
+          primary.textContent = `▶ STAMPEDE ROUND ${round + 1}`;
+          primary.dataset.action = "next";
+          secondary.textContent = "🏳 END RUN";
+          secondary.dataset.action = "endStampede";
         } else {
           dailyEl.style.display = "none";
           primary.textContent = "▶ NEXT ROUND";
@@ -2296,6 +2505,78 @@
         renderAchievementList();
       }
 
+      // Achievements and goat promotions earned since the last results screen
+      function renderUnlocks(achEl) {
+        const parts = newlyUnlocked
+          .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
+          .filter(Boolean)
+          .map((a) => `🏆 ${a.icon} ${a.name}`)
+          .concat(newPromotions.map((p) => `${p.icon} ${p.name} → ${p.rank}`));
+        newlyUnlocked = [];
+        newPromotions = [];
+        achEl.innerHTML = parts.length ? "<b>Unlocked:</b> " + parts.join(" · ") : "";
+        achEl.style.display = parts.length ? "block" : "none";
+      }
+
+      // Stampede run over: results screen becomes the run summary + leaderboard
+      function showStampedeOver(reason) {
+        resultsOpen = true;
+        clearHeldInputs();
+        stampede.over = true;
+        const runTime = stampede.time + (reason === "hearts" ? roundStats.time : 0);
+        document.getElementById("resBadge").textContent = "Stampede";
+        document.getElementById("resHeading").textContent = reason === "hearts" ? "💔 Out of Herd Hearts!" : "🏳 Stampede Ended";
+        document.getElementById("resStars").style.display = "none";
+        document.getElementById("resStarKey").style.display = "none";
+
+        const row = (k, v) => `<div class="res-row"><span>${k}</span><b>${v}</b></div>`;
+        document.getElementById("resGrid").innerHTML =
+          row("Rounds cleared", `${stampede.cleared}`) +
+          row("Stars earned", `${stampede.stars} ⭐`) +
+          row("Goats lost/abducted", `${stampede.lost}`) +
+          row("Total time", `${Math.round(runTime)}s`);
+
+        const prev = loadJSON("best.stampede", null);
+        const isNewBest = stampede.cleared > 0 && (!prev || stampede.total > prev.score);
+        if (isNewBest) saveJSON("best.stampede", { score: stampede.total, round: stampede.cleared });
+        const bestText = isNewBest
+          ? "🏅 NEW STAMPEDE BEST!"
+          : prev
+            ? `Best run: ${prev.score.toLocaleString()} pts (cleared ${prev.round})`
+            : "Clear a round to set a best run.";
+        document.getElementById("resScore").innerHTML =
+          `<div class="res-points">${stampede.total.toLocaleString()} pts</div><div class="res-best ${isNewBest ? "new" : ""}">${bestText}</div>`;
+
+        renderUnlocks(document.getElementById("resAch"));
+        const dailyEl = document.getElementById("resDaily");
+        dailyEl.style.display = stampede.cleared > 0 ? "block" : "none";
+        dailyEl.innerHTML = stampede.cleared > 0 ? shareButtonHtml() : "";
+        document.getElementById("resNext").style.display = "none";
+
+        const primary = document.getElementById("btnResPrimary");
+        const secondary = document.getElementById("btnResSecondary");
+        primary.textContent = "🐐 NEW STAMPEDE";
+        primary.dataset.action = "newStampede";
+        secondary.textContent = "🏠 MENU";
+        secondary.dataset.action = "menu";
+
+        // The board stores rounds cleared in "stars"; a run must clear a round to post
+        const entry =
+          stampede.cleared > 0 && stampede.total >= 100
+            ? {
+                board: "stampede",
+                score: stampede.total,
+                stars: Math.min(999, stampede.cleared),
+                time_s: Math.max(5, Math.round(runTime * 10) / 10),
+                dv: Math.round(stampede.dv)
+              }
+            : null;
+        setupResultsBoard(entry);
+
+        document.getElementById("resultsOverlay").classList.add("open");
+        renderAchievementList();
+      }
+
       // Objective toast, then a hazard heads-up if one starts this round
       let hazardToastTimer = null;
       function announceRound() {
@@ -2313,6 +2594,13 @@
           initWorld();
         } else if (action === "retry") {
           initWorld();
+        } else if (action === "endStampede") {
+          showStampedeOver("quit");
+          return;
+        } else if (action === "newStampede") {
+          round = 1;
+          stampede = freshStampede();
+          initWorld();
         } else if (action === "retryDaily") {
           round = 1;
           dailyTotal = 0;
@@ -2320,8 +2608,8 @@
           dailyRuns = [];
           initWorld();
         } else if (action === "menu") {
-          if (mode === "daily") {
-            // A finished or abandoned daily restarts next time it's picked
+          if (mode === "daily" || (mode === "stampede" && stampede.over)) {
+            // A finished or abandoned daily (or a finished Stampede) restarts next time it's picked
             hasStartedOnce = false;
           } else {
             round += 1;
@@ -2399,6 +2687,47 @@
       ];
       const ORBIT_MILESTONES = new Set([1, 10, 25, 50, 100, 250, 500]);
 
+      // ---- Goat ranks: XP = 1 per orbit lap + 5 per round cleared ----
+      // Each rank adds a piece of gear to the goat's look (see drawRankGear).
+      const GOAT_RANKS = [
+        { xp: 0, name: "Kid", icon: "🍼" },
+        { xp: 15, name: "Billy", icon: "🐐" },
+        { xp: 50, name: "Astronaut", icon: "🚀" },
+        { xp: 120, name: "Commander", icon: "🎖️" },
+        { xp: 250, name: "Astro-Goat", icon: "🌟" }
+      ];
+      const XP_PER_ROUND = 5;
+      let newPromotions = []; // shown on the next results screen
+      function goatXp(r) {
+        return (r.orbits || 0) + (r.rounds || 0) * XP_PER_ROUND;
+      }
+      function rankIndexFor(r) {
+        const xp = goatXp(r);
+        let idx = 0;
+        for (let i = 0; i < GOAT_RANKS.length; i++) if (xp >= GOAT_RANKS[i].xp) idx = i;
+        return idx;
+      }
+      // Rank index by goat name (0 = Kid when the goat has no record yet)
+      function goatRankIndex(name) {
+        const r = roster[name];
+        return r ? rankIndexFor(r) : 0;
+      }
+      // Apply a change to a goat's record and announce any promotion it causes
+      function gainXp(name, change) {
+        const entry = rosterEntry(name);
+        const before = rankIndexFor(entry);
+        change(entry);
+        const after = rankIndexFor(entry);
+        if (after > before) {
+          const rank = GOAT_RANKS[after];
+          newPromotions.push({ name, rank: rank.name, icon: rank.icon });
+          showToast(`${rank.icon} ${name} promoted to ${rank.name}!`);
+          playSound("ring", 1.3);
+          if (after >= 3) unlockAchievement("commander");
+          saveRoster();
+        }
+      }
+
       // Count completed laps for goats in a safe orbit
       function trackGoatLaps(g) {
         const th = Math.atan2(g.y, g.x);
@@ -2406,8 +2735,8 @@
           g.lapAngle += normalizeAngle(th - g.lapPrev);
           if (Math.abs(g.lapAngle) >= Math.PI * 2) {
             g.lapAngle -= Math.sign(g.lapAngle) * Math.PI * 2;
+            gainXp(g.palette.name, (r) => (r.orbits += 1));
             const entry = rosterEntry(g.palette.name);
-            entry.orbits += 1;
             if (ORBIT_MILESTONES.has(entry.orbits)) {
               showToast(`🛰️ ${g.palette.name} completed orbit #${entry.orbits}!`);
               saveRoster();
@@ -2443,10 +2772,24 @@
           info.className = "roster-info";
           const nm = document.createElement("b");
           nm.textContent = name;
+          const ri = rankIndexFor(r);
+          const rank = GOAT_RANKS[ri];
+          const next = GOAT_RANKS[ri + 1];
+          const xp = goatXp(r);
+          const rankEl = document.createElement("span");
+          rankEl.className = "roster-rank";
+          rankEl.textContent = next
+            ? `${rank.icon} ${rank.name} · ${xp}/${next.xp} XP to ${next.name}`
+            : `${rank.icon} ${rank.name} · ${xp} XP · max rank`;
+          const bar = document.createElement("div");
+          bar.className = "rank-bar";
+          const fill = document.createElement("i");
+          fill.style.width = next ? `${Math.round(((xp - rank.xp) / (next.xp - rank.xp)) * 100)}%` : "100%";
+          bar.append(fill);
           const stats = document.createElement("small");
           stats.textContent = `🛰 ${r.orbits} orbit${r.orbits === 1 ? "" : "s"} · 🏁 ${r.rounds} round${r.rounds === 1 ? "" : "s"}` +
             (r.lost ? ` · 🌌 lost ${r.lost}` : "") + (r.abducted ? ` · 🛸 abducted ${r.abducted}` : "");
-          info.append(nm, stats);
+          info.append(nm, rankEl, stats, bar);
           const badges = document.createElement("span");
           badges.className = "roster-badges";
           for (const b of ROSTER_BADGES) {
@@ -2947,7 +3290,8 @@
         meteorTimer = 14;
         ufoTimer = 22;
 
-        const goatCount = mode === "school" ? 1 : isScoredMode() ? Math.min(2 + round, 6) : 4;
+        const goatCount =
+          mode === "school" ? 1 : mode === "stampede" ? Math.min(2 + round, STAMPEDE_MAX_GOATS) : isScoredMode() ? Math.min(2 + round, 6) : 4;
         roundStats = freshStats(goatCount);
         buildObjective();
         for (let i = 0; i < goatCount; i++) {
@@ -2987,6 +3331,8 @@
         const resuming = (m) => hasStartedOnce && mode === m;
         herdBtn.textContent = resuming("herding") ? `▶ RESUME HERD (ROUND ${round})` : "🚀 LAUNCH HERD";
         dailyBtn.textContent = resuming("daily") ? `▶ RESUME DAILY (${round}/${DAILY_ROUNDS})` : "📅 DAILY CHALLENGE";
+        document.getElementById("btnLaunchStampede").textContent =
+          resuming("stampede") && !stampede.over ? `▶ RESUME STAMPEDE (ROUND ${round})` : "🐐 STAMPEDE (ENDLESS)";
         sandboxBtn.textContent = resuming("sandbox") ? "▶ RESUME SANDBOX" : "🧪 SANDBOX";
         const schoolBtn = document.getElementById("btnLaunchSchool");
         const schoolDone = Boolean(loadJSON("schoolDone", false));
@@ -3015,15 +3361,21 @@
         mode = chosenMode;
 
         const btnMode = document.getElementById("btnMode");
-        btnMode.textContent = { herding: "Herding", daily: "Daily", sandbox: "Sandbox", school: "School" }[mode] || "Herding";
+        btnMode.textContent = { herding: "Herding", daily: "Daily", stampede: "Stampede", sandbox: "Sandbox", school: "School" }[mode] || "Herding";
         document.getElementById("btnSpawnToggle").style.display = mode === "sandbox" ? "inline-flex" : "none";
         document.getElementById("spawnDrawer").classList.remove("open");
         document.getElementById("fhTimeItem").classList.toggle("off", !isScoredMode());
         document.getElementById("fhDvItem").classList.toggle("off", !isScoredMode());
 
         if (mode === "school" && (modeChanged || school.done)) resetSchool();
-        if (!hasStartedOnce || modeChanged || (mode === "school" && school.step === 0 && !school.done)) {
+        if (
+          !hasStartedOnce ||
+          modeChanged ||
+          (mode === "school" && school.step === 0 && !school.done) ||
+          (mode === "stampede" && stampede.over)
+        ) {
           round = 1;
+          stampede = freshStampede();
           dailyTotal = 0;
           dailyRoundScores = [];
           dailyRuns = [];
@@ -3039,6 +3391,9 @@
 
         if (isScoredMode()) {
           announceRound();
+          if (mode === "stampede" && round === 1) {
+            setTimeout(() => showToast(`🐐 Stampede! ${heartsText()} Lose a goat, lose a heart.`), 3000);
+          }
         } else if (mode === "school") {
           showToast("🎓 Flight School: follow the steps in the green panel");
         } else {
@@ -3734,6 +4089,7 @@
                   removeGoatAt(gi);
                   removed = true;
                   roundStats.abducted += 1;
+                  onGoatLost();
                   rosterEntry(g.palette.name).abducted += 1;
                   returningAbductees.push({ timer: 15.0 });
                   ufo.fleeing = true;
@@ -3790,6 +4146,7 @@
             const lostName = g.palette.name;
             removeGoatAt(gi);
             roundStats.lost += 1;
+            onGoatLost();
             rosterEntry(lostName).lost += 1;
             saveRoster();
             const replacement = createGoat(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.6, false, false);
@@ -3935,6 +4292,11 @@
         }
 
         if (!tutorialOpen && isScoredMode()) roundStats.time += dt;
+
+        if (mode === "stampede" && stampede.over && !tutorialOpen && !resultsOpen) {
+          showStampedeOver("hearts");
+          return;
+        }
 
         if (!tutorialOpen && isScoredMode() && objectiveMet()) {
           orbitLockTimer += dt;
@@ -4371,6 +4733,8 @@
           const isSelected = i === selectedGoatIdx;
           const theta = Math.atan2(g.y, g.x);
           const scale = g.isKid ? 0.68 : 1.0;
+          const rankIdx = goatRankIndex(g.palette.name);
+          const hornColor = rankIdx >= 4 ? "#facc15" : g.palette.horns;
 
           ctx.save();
           ctx.translate(g.x, g.y);
@@ -4488,8 +4852,21 @@
           ctx.arc(-19.5, -11.5, 2.2, 0, Math.PI * 2);
           ctx.fill();
 
+          // Rank gear: Billy's mission patch on the flank
+          if (rankIdx >= 1) {
+            ctx.fillStyle = g.palette.visor;
+            ctx.beginPath();
+            for (let p = 0; p < 10; p++) {
+              const a = -Math.PI / 2 + (p * Math.PI) / 5;
+              const rr = p % 2 === 0 ? 3.6 : 1.5;
+              ctx.lineTo(-3 + Math.cos(a) * rr, -1 + Math.sin(a) * rr);
+            }
+            ctx.closePath();
+            ctx.fill();
+          }
+
           // Back horn (darker, behind the head) for depth
-          ctx.strokeStyle = g.palette.horns;
+          ctx.strokeStyle = hornColor;
           ctx.globalAlpha = 0.55;
           ctx.lineWidth = 2.2;
           ctx.beginPath();
@@ -4510,7 +4887,7 @@
           ctx.fill();
 
           // Front horn
-          ctx.strokeStyle = g.palette.horns;
+          ctx.strokeStyle = hornColor;
           ctx.lineWidth = 2.5;
           ctx.beginPath();
           ctx.arc(10, -14, g.isKid ? 4 : 6, Math.PI * 0.9, Math.PI * 1.85);
@@ -4566,6 +4943,38 @@
           ctx.beginPath();
           ctx.arc(14, -10, 8.5, Math.PI * 1.12, Math.PI * 1.42);
           ctx.stroke();
+
+          // Rank gear: Astronaut's gold helmet ring
+          if (rankIdx >= 2) {
+            ctx.strokeStyle = "#facc15";
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.arc(14, -10, 13, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          // Rank gear: Commander's red scarf, tail flapping behind
+          if (rankIdx >= 3) {
+            const flap = Math.sin(simTime * 9 + i) * 2;
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.roundRect(5, -6, 8, 4, 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(6, -4);
+            ctx.lineTo(-3, -6 + flap);
+            ctx.lineTo(-2, -1 + flap);
+            ctx.lineTo(7, -2);
+            ctx.closePath();
+            ctx.fill();
+          }
+          // Rank gear: Astro-Goat's orbiting sparkle (horns are already gold)
+          if (rankIdx >= 4) {
+            const a = simTime * 3 + i;
+            ctx.fillStyle = "#fde68a";
+            ctx.beginPath();
+            ctx.arc(14 + Math.cos(a) * 17, -10 + Math.sin(a) * 17, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           ctx.restore();
         }
@@ -4735,7 +5144,8 @@
         const orbiting = goats.filter((g) => g.orbitState === "ORBIT").length;
         const total = goats.length;
         if (isScoredMode()) {
-          const tag = mode === "daily" ? `D${round}/${DAILY_ROUNDS}` : `R${round}`;
+          const tag =
+            mode === "daily" ? `D${round}/${DAILY_ROUNDS}` : mode === "stampede" ? `S${round} ${"♥".repeat(Math.max(0, stampede.hearts))}` : `R${round}`;
           const ok = goats.filter(goatQualifies).length;
           let objText = `${ok}/${total}`;
           if (objective.type === "band") objText = `▭${objective.bandLo}-${objective.bandHi} • ${ok}/${total}`;
@@ -5013,6 +5423,12 @@
       document.getElementById("btnLaunchHerd").addEventListener("click", () => closeTutorialAndLaunch("herding"));
       document.getElementById("btnLaunchSandbox").addEventListener("click", () => closeTutorialAndLaunch("sandbox"));
       document.getElementById("btnLaunchDaily").addEventListener("click", () => closeTutorialAndLaunch("daily"));
+      document.getElementById("btnLaunchStampede").addEventListener("click", () => closeTutorialAndLaunch("stampede"));
+      document.getElementById("resDaily").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-share]");
+        if (!btn) return;
+        shareText(stampede.over && mode === "stampede" ? stampedeShareText() : dailyShareText(), btn);
+      });
       document.getElementById("btnLaunchSchool").addEventListener("click", () => closeTutorialAndLaunch("school"));
       document.getElementById("setColorBlind").addEventListener("change", (e) => setColorBlind(e.target.checked));
       document.getElementById("setLevel").addEventListener("change", (e) => setLevelAssist(e.target.checked, false));
