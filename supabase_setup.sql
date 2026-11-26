@@ -65,3 +65,49 @@ grant select, insert on public.scores to anon, authenticated;
 
 -- No update or delete policies: submitted scores can't be changed via the API.
 -- To remove a junk entry, delete it yourself in Table Editor -> scores.
+
+-- ---------------------------------------------------------------------------
+-- Anonymous play stats (where do players stop?)
+-- The game sends a few small events: open, start, clear, over, leave,
+-- school_done, sss_done. Each carries a random player/session id (no names,
+-- no IPs stored), the mode and round, and a tiny JSON payload.
+-- Visitors can INSERT only; nobody can read the table through the public API.
+-- Read it yourself in the SQL Editor (example queries at the bottom).
+-- Players can switch this off in the game's Settings.
+-- ---------------------------------------------------------------------------
+create table if not exists public.events (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  player     text not null check (player ~ '^[a-z0-9]{8,16}$'),
+  session    text not null check (session ~ '^[a-z0-9]{8,16}$'),
+  kind       text not null check (kind in ('open','start','clear','over','leave','school_done','sss_done')),
+  mode       text check (mode is null or mode ~ '^[a-z]{1,16}$'),
+  round      smallint check (round is null or round between 0 and 999),
+  data       jsonb not null default '{}'::jsonb check (pg_column_size(data) < 600)
+);
+
+create index if not exists events_created_idx on public.events (created_at desc);
+create index if not exists events_kind_mode_idx on public.events (kind, mode, round);
+
+alter table public.events enable row level security;
+
+drop policy if exists "Anyone can send a play event" on public.events;
+create policy "Anyone can send a play event"
+  on public.events for insert
+  to anon, authenticated
+  with check (true);
+
+grant insert on public.events to anon, authenticated;
+-- (no select grant: the public can't read events)
+
+-- Example: where players stop in Herding (starts vs clears per round, last 30 days)
+-- select round,
+--        count(*) filter (where kind = 'start') as starts,
+--        count(*) filter (where kind = 'clear') as clears
+-- from public.events
+-- where mode = 'herding' and created_at > now() - interval '30 days'
+-- group by round order by round;
+--
+-- Example: players per day and how many come back another day
+-- select date_trunc('day', created_at)::date as day, count(distinct player) as players
+-- from public.events where kind = 'open' group by 1 order by 1 desc;

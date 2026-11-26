@@ -1335,6 +1335,7 @@
       <details class="menu-section">
         <summary>⚙️ Settings</summary>
         <label class="set-row"><input type="checkbox" id="setColorBlind"> <span><b>Colour-blind friendly paths</b><small>Blue/orange/magenta colours plus distinct line patterns: solid = orbit, long dashes = falling, dots = lost.</small></span></label>
+        <label class="set-row"><input type="checkbox" id="setStats" checked> <span><b>Share anonymous play stats</b><small>Sends which mode and round you start, clear or leave, with a random ID. No names, nothing personal. Helps make the game better.</small></span></label>
         <label class="set-row"><input type="checkbox" id="setLevel" checked> <span><b>Level assist</b><small>Nose snaps back to horizontal when you let go of ◀ ▶ (also Q / LEVEL button).</small></span></label>
       </details>
 
@@ -2020,6 +2021,52 @@
         return sbFetch("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(entry) });
       }
 
+      // ---- Anonymous play stats (Supabase "events" table, insert-only) ----
+      // A random per-browser player id and per-visit session id; no names.
+      const STATS_MAX_PER_SESSION = 300;
+      let statsOptOut = Boolean(loadJSON("statsOptOut", false));
+      let statsSent = 0;
+      function randomId() {
+        let id = "";
+        while (id.length < 12) id += Math.random().toString(36).slice(2);
+        return id.slice(0, 12);
+      }
+      const statsPlayer = (() => {
+        let id = loadJSON("statsPlayer", null);
+        if (typeof id !== "string" || !/^[a-z0-9]{8,16}$/.test(id)) {
+          id = randomId();
+          saveJSON("statsPlayer", id);
+        }
+        return id;
+      })();
+      const statsSession = randomId();
+      function track(kind, data = {}, opts = {}) {
+        if (!boardEnabled() || statsOptOut || statsSent >= STATS_MAX_PER_SESSION) return;
+        if (/^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === "file:") return; // not while developing
+        statsSent += 1;
+        const row = {
+          player: statsPlayer,
+          session: statsSession,
+          kind,
+          mode: opts.mode !== undefined ? opts.mode : mode,
+          round: opts.round !== undefined ? opts.round : Math.min(999, round),
+          data
+        };
+        const headers = { apikey: LEADERBOARD.key, "Content-Type": "application/json", Prefer: "return=minimal" };
+        if (LEADERBOARD.key.startsWith("eyJ")) headers.Authorization = `Bearer ${LEADERBOARD.key}`;
+        try {
+          // keepalive lets the "leave" event finish while the tab closes
+          fetch(`${LEADERBOARD.url.replace(/\/+$/, "")}/rest/v1/events`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(row),
+            keepalive: true
+          }).catch(() => {});
+        } catch (e) {
+          /* stats are best-effort */
+        }
+      }
+
       function cleanPlayerName(raw) {
         return String(raw || "")
           .replace(/[^\p{L}\p{N} _.'-]/gu, "")
@@ -2449,6 +2496,7 @@
 
       function finishRound() {
         const res = computeRoundResults();
+        track("clear", { score: res.score, stars: res.stars, t: Math.round(roundStats.time) });
         const type = objective.type;
 
         unlockAchievement("shepherd");
@@ -2626,6 +2674,7 @@
         resultsOpen = true;
         clearHeldInputs();
         stampede.over = true;
+        track("over", { cleared: stampede.cleared, score: stampede.total, why: reason });
         const runTime = stampede.time + (reason === "hearts" ? roundStats.time : 0);
         document.getElementById("resBadge").textContent = "Stampede";
         document.getElementById("resHeading").textContent = reason === "hearts" ? "💔 Out of Herd Hearts!" : "🏳 Stampede Ended";
@@ -2683,6 +2732,7 @@
       // Objective toast, then a hazard heads-up if one starts this round
       let hazardToastTimer = null;
       function announceRound() {
+        track("start");
         showToast(objectiveIntro());
         clearTimeout(hazardToastTimer);
         const warn = newHazardText(round);
@@ -3323,6 +3373,7 @@
               if (school.holdT >= 3) {
                 school.done = true;
                 saveJSON("schoolDone", true);
+                track("school_done");
                 playSound("lock");
                 unlockAchievement("graduate");
               }
@@ -3544,12 +3595,16 @@
             setTimeout(() => showToast(`🐐 Stampede! ${heartsText()} Lose a goat, lose a heart.`), 3000);
           }
         } else if (mode === "sss") {
+          track("start");
           showToast("🐑 Entering the SSS: tow 3 hay bales into the airlock. Don't knock sheep into space!");
         } else if (mode === "afterparty") {
+          track("start");
           showToast("🎉 SSS Afterparty: tap 🎛 Party for gravity and herd sliders");
         } else if (mode === "school") {
+          track("start");
           showToast("🎓 Flight School: follow the steps in the green panel");
         } else {
+          track("start");
           showToast("🧪 Sandbox Mode: Tap + Spawn to add goats & props!");
         }
       }
@@ -4814,6 +4869,7 @@
         roundStats.time = Math.max(roundStats.time, 5);
         unlockAchievement("sss");
         saveJSON("afterpartyUnlocked", true);
+        track("sss_done", { t: Math.round(roundStats.time), lost: sssState.sheepLost });
       }
 
       function cutsceneTarget(w, h) {
@@ -7248,6 +7304,18 @@
       document.getElementById("btnLaunchSchool").addEventListener("click", () => closeTutorialAndLaunch("school"));
       document.getElementById("setColorBlind").addEventListener("change", (e) => setColorBlind(e.target.checked));
       document.getElementById("setLevel").addEventListener("change", (e) => setLevelAssist(e.target.checked, false));
+      const statsBox = document.getElementById("setStats");
+      statsBox.checked = !statsOptOut;
+      statsBox.addEventListener("change", (e) => {
+        statsOptOut = !e.target.checked;
+        saveJSON("statsOptOut", statsOptOut);
+      });
+      // One "open" per visit, and a "leave" each time the tab is hidden or closed
+      track("open", { touch: matchMedia("(pointer: coarse)").matches }, { mode: null, round: null });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "hidden") return;
+        track("leave", { menu: tutorialOpen, results: resultsOpen, t: Math.round(roundStats.time || 0) });
+      });
       setColorBlind(colorBlindMode);
       document.getElementById("btnHelp").addEventListener("click", () => {
         if (!resultsOpen) openTutorialOverlay();
