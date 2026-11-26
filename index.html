@@ -1268,7 +1268,7 @@
         <button id="btnLaunchHerd" class="btn-launch-primary">🚀 LAUNCH HERD</button>
         <button id="btnLaunchDaily" class="btn-launch-secondary">📅 DAILY CHALLENGE</button>
         <button id="btnLaunchStampede" class="btn-launch-secondary">🐐 STAMPEDE (ENDLESS)</button>
-        <button id="btnLaunchSss" class="btn-launch-secondary">🐑 FINAL LEVEL: ENTERING THE SSS</button>
+        <button id="btnLaunchSss" class="btn-launch-secondary" style="display:none">🐑 FINAL LEVEL: ENTERING THE SSS</button>
         <button id="btnLaunchAfterparty" class="btn-launch-secondary" style="display:none">🎉 SSS AFTERPARTY SANDBOX</button>
         <button id="btnLaunchSchool" class="btn-launch-secondary">🎓 FLIGHT SCHOOL</button>
         <button id="btnLaunchSandbox" class="btn-launch-secondary subtle">🧪 SANDBOX</button>
@@ -2324,7 +2324,7 @@
         { id: "commander", icon: "🎖️", name: "Field Promotion", desc: "Rank a goat up to Commander" },
         { id: "woolball", icon: "🧶", name: "Woolball", desc: "Startle a lone sheep into a rolling woolball" },
         { id: "copper", icon: "🟠", name: "Copper Kid", desc: "Grab a Copper Mineral boost with a goat" },
-        { id: "sss", icon: "🐑", name: "SSS Honorary Member", desc: "Complete Level Final: Entering the SSS" }
+        { id: "sss", icon: "🐑", name: "SSS Honorary Member", desc: "Complete Level Final: Entering the SSS", secret: true }
       ];
       let unlockedAch = loadJSON("achievements", {});
       let newlyUnlocked = [];
@@ -2346,12 +2346,21 @@
         if (!grid) return;
         const count = ACHIEVEMENTS.filter((a) => unlockedAch[a.id]).length;
         document.getElementById("achCount").textContent = `${count}/${ACHIEVEMENTS.length}`;
-        grid.innerHTML = ACHIEVEMENTS.map(
-          (a) =>
-            `<div class="ach-item ${unlockedAch[a.id] ? "on" : ""}" title="${a.desc}">` +
+        grid.innerHTML = ACHIEVEMENTS.map((a) => {
+          // Secret achievements stay hidden until the secret level is found
+          const hidden = a.secret && !unlockedAch[a.id] && !sssUnlocked();
+          const name = hidden ? "???" : a.name;
+          const desc = hidden ? "A secret. Keep herding..." : a.desc;
+          return (
+            `<div class="ach-item ${unlockedAch[a.id] ? "on" : ""}" title="${desc}">` +
             `<span class="ach-icon">${unlockedAch[a.id] ? a.icon : "🔒"}</span>` +
-            `<span class="ach-text"><b>${a.name}</b><small>${a.desc}</small></span></div>`
-        ).join("");
+            `<span class="ach-text"><b>${name}</b><small>${desc}</small></span></div>`
+          );
+        }).join("");
+
+        // Secret tiles appear only once earned (also covers the first menu at startup)
+        document.getElementById("btnLaunchSss").style.display = sssUnlocked() ? "" : "none";
+        document.getElementById("btnLaunchAfterparty").style.display = afterpartyUnlocked() ? "" : "none";
 
         const dailyBest = loadJSON(`daily.${todayKey()}`, null);
         document.getElementById("dailyBestLine").textContent = dailyBest
@@ -3504,19 +3513,12 @@
         dailyBtn.textContent = resuming("daily") ? `▶ RESUME DAILY (${round}/${DAILY_ROUNDS})` : "📅 DAILY CHALLENGE";
         const sssBtn = document.getElementById("btnLaunchSss");
         const unlocked = sssUnlocked();
-        sssBtn.textContent = resuming("sss") && !cutscene
-          ? "▶ RESUME: ENTERING THE SSS"
-          : unlocked
-            ? "🐑 FINAL LEVEL: ENTERING THE SSS"
-            : "🔒 FINAL LEVEL: ENTERING THE SSS";
-        sssBtn.classList.toggle("menu-locked", !unlocked);
+        // The final level is a secret: no tile, no hint until it's unlocked
+        sssBtn.style.display = unlocked ? "" : "none";
+        sssBtn.textContent = resuming("sss") && !cutscene ? "▶ RESUME: ENTERING THE SSS" : "🐑 FINAL LEVEL: ENTERING THE SSS";
         const sssNote = document.getElementById("sssNote");
         const sssBest = loadJSON("best.sss", null);
-        sssNote.textContent = !unlocked
-          ? `🔒 Clear Herd or Stampede round ${SSS_UNLOCK_ROUND} to unlock the final level.`
-          : sssBest
-            ? `🐑 SSS best: ${sssBest.score.toLocaleString()} pts`
-            : "";
+        sssNote.textContent = unlocked && sssBest ? `🐑 SSS best: ${sssBest.score.toLocaleString()} pts` : "";
         sssNote.style.display = sssNote.textContent ? "block" : "none";
         document.getElementById("btnLaunchAfterparty").style.display = afterpartyUnlocked() ? "" : "none";
         document.getElementById("btnLaunchStampede").textContent =
@@ -3544,12 +3546,7 @@
       }
 
       function closeTutorialAndLaunch(chosenMode) {
-        if (chosenMode === "sss" && !sssUnlocked()) {
-          const note = document.getElementById("sssNote");
-          note.textContent = `🔒 Locked: clear Herd or Stampede round ${SSS_UNLOCK_ROUND} first.`;
-          note.style.display = "block";
-          return;
-        }
+        if (chosenMode === "sss" && !sssUnlocked()) return; // secret until unlocked
         ensureAudio();
         const modeChanged = mode !== chosenMode;
         mode = chosenMode;
@@ -4582,12 +4579,14 @@
       let bales = [];
 
       function sssUnlocked() {
+        // ?unlock=sss opens the secret level straight away (handy for testing)
+        if (/[?&]unlock=sss\b/.test(location.search)) saveJSON("sssUnlocked", true);
         return Boolean(loadJSON("sssUnlocked", false));
       }
       function unlockSss() {
         if (sssUnlocked()) return;
         saveJSON("sssUnlocked", true);
-        showToast("🐑 Final Level unlocked: Entering the SSS!");
+        showToast("🐑 You've found a secret... a new level is waiting in the menu");
       }
       function afterpartyUnlocked() {
         return Boolean(loadJSON("afterpartyUnlocked", false));
@@ -7294,8 +7293,7 @@
         setPartyHerd(n);
         saveJSON("partySettings", partySettings);
       });
-      // ?unlock=sss opens the final level straight away (handy for testing)
-      if (/[?&]unlock=sss\b/.test(location.search)) saveJSON("sssUnlocked", true);
+
       document.getElementById("resDaily").addEventListener("click", (e) => {
         const btn = e.target.closest("[data-share]");
         if (!btn) return;
